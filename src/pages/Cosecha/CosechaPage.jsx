@@ -13,9 +13,7 @@ const CosechaPage = () => {
   const [formData, setFormData] = useState({
     fecha: new Date().toISOString().split('T')[0],
     lote_id: '',
-    kilos_primera: 0,
-    kilos_segunda: 0,
-    kilos_rechazo: 0,
+    kilos_total: 0,
     observaciones: ''
   });
 
@@ -44,7 +42,6 @@ const CosechaPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const total = Number(formData.kilos_primera) + Number(formData.kilos_segunda) + Number(formData.kilos_rechazo);
     const semana = getWeekNumber(formData.fecha);
     const año = new Date(formData.fecha).getFullYear();
     const lote = lotes.find(l => l.id === formData.lote_id);
@@ -52,14 +49,14 @@ const CosechaPage = () => {
     try {
       await addDoc(collection(db, 'cosechas'), {
         ...formData,
-        kilos_total: total,
+        kilos_total: Number(formData.kilos_total),
         semana,
         año,
         lote_nombre: lote?.nombre || 'Desconocido',
         timestamp: new Date().toISOString()
       });
       setIsModalOpen(false);
-      setFormData({ fecha: new Date().toISOString().split('T')[0], lote_id: '', kilos_primera: 0, kilos_segunda: 0, kilos_rechazo: 0, observaciones: '' });
+      setFormData({ fecha: new Date().toISOString().split('T')[0], lote_id: '', kilos_total: 0, observaciones: '' });
       fetchData();
     } catch (error) {
       console.error("Error saving cosecha:", error);
@@ -136,10 +133,7 @@ const CosechaPage = () => {
                 <th className="pb-4 font-extrabold">Semana</th>
                 <th className="pb-4 font-extrabold">Fecha</th>
                 <th className="pb-4 font-extrabold">Lote</th>
-                <th className="pb-4 font-extrabold">1ª (kg)</th>
-                <th className="pb-4 font-extrabold">2ª (kg)</th>
-                <th className="pb-4 font-extrabold">Rechazo</th>
-                <th className="pb-4 font-extrabold">Total</th>
+                <th className="pb-4 font-extrabold text-right">Cantidad Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -150,10 +144,7 @@ const CosechaPage = () => {
                   </td>
                   <td className="py-4 text-sm text-gray-500">{item.fecha}</td>
                   <td className="py-4 font-bold text-gray-800">{item.lote_nombre}</td>
-                  <td className="py-4 text-sm font-medium text-primary">{item.kilos_primera}</td>
-                  <td className="py-4 text-sm font-medium text-secondary">{item.kilos_segunda}</td>
-                  <td className="py-4 text-sm font-medium text-red-500">{item.kilos_rechazo}</td>
-                  <td className="py-4 font-black text-gray-900">{item.kilos_total} kg</td>
+                  <td className="py-4 font-black text-gray-900 text-right">{formatKg(item.kilos_total)}</td>
                 </tr>
               ))}
               {cosechas.length === 0 && (
@@ -201,46 +192,20 @@ const CosechaPage = () => {
                     {lotes.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
                   </select>
                 </div>
-                
-                <div className="bg-primary-light/50 p-4 rounded-2xl border border-primary/10">
-                  <label className="block text-sm font-bold text-primary mb-2">Kilos Primera</label>
+                <div className="col-span-2 bg-primary-light/30 p-8 rounded-[2rem] border border-primary/10 text-center">
+                  <label className="block text-sm font-bold text-primary mb-4 uppercase tracking-widest">Kilos Cosechados (Total)</label>
                   <input 
                     type="number" 
-                    className="input-field" 
-                    value={formData.kilos_primera}
-                    onChange={(e) => setFormData({...formData, kilos_primera: e.target.value})}
+                    className="text-5xl font-black text-center bg-transparent border-none focus:ring-0 w-full text-gray-900" 
+                    value={formData.kilos_total}
+                    onChange={(e) => setFormData({...formData, kilos_total: e.target.value})}
+                    placeholder="0"
                     required 
                   />
-                </div>
-                <div className="bg-secondary-light/50 p-4 rounded-2xl border border-secondary/10">
-                  <label className="block text-sm font-bold text-secondary mb-2">Kilos Segunda</label>
-                  <input 
-                    type="number" 
-                    className="input-field" 
-                    value={formData.kilos_segunda}
-                    onChange={(e) => setFormData({...formData, kilos_segunda: e.target.value})}
-                    required 
-                  />
-                </div>
-                <div className="bg-red-50 p-4 rounded-2xl border border-red-100 col-span-2">
-                  <label className="block text-sm font-bold text-red-600 mb-2">Kilos Rechazo</label>
-                  <input 
-                    type="number" 
-                    className="input-field" 
-                    value={formData.kilos_rechazo}
-                    onChange={(e) => setFormData({...formData, kilos_rechazo: e.target.value})}
-                    required 
-                  />
-                </div>
-
-                <div className="col-span-2 bg-gray-900 text-white p-6 rounded-2xl flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-400 text-xs font-bold uppercase">Total Cosechado</p>
-                    <p className="text-4xl font-black">
-                      {Number(formData.kilos_primera) + Number(formData.kilos_segunda) + Number(formData.kilos_rechazo)} kg
-                    </p>
+                  <div className="mt-4 flex items-center justify-center gap-2 text-primary">
+                    <CheckCircle2 size={24} />
+                    <span className="font-bold">Listo para registrar</span>
                   </div>
-                  <CheckCircle2 size={40} className="text-primary" />
                 </div>
 
                 <div className="col-span-2">
