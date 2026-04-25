@@ -12,10 +12,10 @@ const CosechaPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     fecha: new Date().toISOString().split('T')[0],
-    lote_id: '',
-    kilos_total: 0,
+    detalles: [], // Array de { lote_id: '', lote_nombre: '', kilos: 0 }
     observaciones: ''
   });
+  const [tempLote, setTempLote] = useState({ id: '', kilos: '' });
 
   useEffect(() => {
     fetchData();
@@ -40,23 +40,47 @@ const CosechaPage = () => {
     }
   };
 
+  const addLoteADetalle = () => {
+    if (!tempLote.id || !tempLote.kilos) return;
+    const lote = lotes.find(l => l.id === tempLote.id);
+    setFormData({
+      ...formData,
+      detalles: [...formData.detalles, { lote_id: tempLote.id, lote_nombre: lote.nombre, kilos: Number(tempLote.kilos) }]
+    });
+    setTempLote({ id: '', kilos: '' });
+  };
+
+  const removeLoteDeDetalle = (index) => {
+    const nuevosDetalles = formData.detalles.filter((_, i) => i !== index);
+    setFormData({ ...formData, detalles: nuevosDetalles });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (formData.detalles.length === 0) return alert('Agrega al menos un lote');
+    
     const semana = getWeekNumber(formData.fecha);
     const año = new Date(formData.fecha).getFullYear();
-    const lote = lotes.find(l => l.id === formData.lote_id);
 
     try {
-      await addDoc(collection(db, 'cosechas'), {
-        ...formData,
-        kilos_total: Number(formData.kilos_total),
-        semana,
-        año,
-        lote_nombre: lote?.nombre || 'Desconocido',
-        timestamp: new Date().toISOString()
-      });
+      // Guardamos cada lote como un registro independiente para mantener la compatibilidad con filtros
+      const promesas = formData.detalles.map(detalle => 
+        addDoc(collection(db, 'cosechas'), {
+          fecha: formData.fecha,
+          lote_id: detalle.lote_id,
+          lote_nombre: detalle.lote_nombre,
+          kilos_total: detalle.kilos,
+          observaciones: formData.observaciones,
+          semana,
+          año,
+          timestamp: new Date().toISOString()
+        })
+      );
+
+      await Promise.all(promesas);
+      
       setIsModalOpen(false);
-      setFormData({ fecha: new Date().toISOString().split('T')[0], lote_id: '', kilos_total: 0, observaciones: '' });
+      setFormData({ fecha: new Date().toISOString().split('T')[0], detalles: [], observaciones: '' });
       fetchData();
     } catch (error) {
       console.error("Error saving cosecha:", error);
@@ -180,32 +204,67 @@ const CosechaPage = () => {
                   />
                   <p className="text-xs text-primary font-bold mt-1">Semana calculada: {getWeekNumber(formData.fecha)}</p>
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Seleccionar Lote</label>
-                  <select 
-                    className="input-field"
-                    value={formData.lote_id}
-                    onChange={(e) => setFormData({...formData, lote_id: e.target.value})}
-                    required
-                  >
-                    <option value="">Selecciona un lote...</option>
-                    {lotes.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
-                  </select>
-                </div>
-                <div className="col-span-2 bg-primary-light/30 p-8 rounded-[2rem] border border-primary/10 text-center">
-                  <label className="block text-sm font-bold text-primary mb-4 uppercase tracking-widest">Kilos Cosechados (Total)</label>
-                  <input 
-                    type="number" 
-                    className="text-5xl font-black text-center bg-transparent border-none focus:ring-0 w-full text-gray-900" 
-                    value={formData.kilos_total}
-                    onChange={(e) => setFormData({...formData, kilos_total: e.target.value})}
-                    placeholder="0"
-                    required 
-                  />
-                  <div className="mt-4 flex items-center justify-center gap-2 text-primary">
-                    <CheckCircle2 size={24} />
-                    <span className="font-bold">Listo para registrar</span>
+                <div className="col-span-2">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Agregar Lotes y Cantidades</label>
+                  <div className="flex gap-2 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                    <select 
+                      className="flex-1 input-field bg-white"
+                      value={tempLote.id}
+                      onChange={(e) => setTempLote({...tempLote, id: e.target.value})}
+                    >
+                      <option value="">Lote...</option>
+                      {lotes.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
+                    </select>
+                    <input 
+                      type="number" 
+                      className="w-32 input-field bg-white" 
+                      placeholder="Kilos"
+                      value={tempLote.kilos}
+                      onChange={(e) => setTempLote({...tempLote, kilos: e.target.value})}
+                    />
+                    <button 
+                      type="button"
+                      onClick={addLoteADetalle}
+                      className="p-3 bg-primary text-white rounded-xl hover:bg-primary-dark transition-colors"
+                    >
+                      <Plus size={20} />
+                    </button>
                   </div>
+
+                  {/* Lista de lotes agregados */}
+                  <div className="mt-4 space-y-2">
+                    {formData.detalles.map((detalle, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl animate-in slide-in-from-left-2">
+                        <div className="flex items-center gap-3">
+                          <span className="w-8 h-8 bg-primary-light text-primary rounded-lg flex items-center justify-center font-bold text-xs">{index + 1}</span>
+                          <div>
+                            <p className="font-bold text-gray-900 text-sm">{detalle.lote_nombre}</p>
+                            <p className="text-xs text-gray-400">Desglose de producción</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="font-black text-gray-900">{formatKg(detalle.kilos)}</span>
+                          <button 
+                            type="button" 
+                            onClick={() => removeLoteDeDetalle(index)}
+                            className="text-red-400 hover:text-red-600 p-1"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="col-span-2 bg-gray-900 text-white p-6 rounded-2xl flex items-center justify-between mt-4">
+                  <div>
+                    <p className="text-gray-400 text-[10px] font-black uppercase">Total de la Sesión</p>
+                    <p className="text-3xl font-black">
+                      {formatKg(formData.detalles.reduce((acc, curr) => acc + curr.kilos, 0))}
+                    </p>
+                  </div>
+                  <CheckCircle2 size={32} className="text-primary" />
                 </div>
 
                 <div className="col-span-2">
