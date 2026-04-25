@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, query, orderBy, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, where, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
-import { Leaf, Plus, Calendar, Filter, Download, CheckCircle2, Clock } from 'lucide-react';
+import { Leaf, Plus, Calendar, Filter, Download, CheckCircle2, Clock, Trash2 } from 'lucide-react';
 import { getWeekNumber, getCurrentWeek, getCurrentYear } from '../../utils/weekUtils';
 import { formatKg } from '../../utils/formatters';
 
@@ -87,6 +87,17 @@ const CosechaPage = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (window.confirm('¿Estás seguro de eliminar este registro de cosecha?')) {
+      try {
+        await deleteDoc(doc(db, 'cosechas', id));
+        fetchData();
+      } catch (error) {
+        console.error("Error deleting cosecha:", error);
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -158,6 +169,7 @@ const CosechaPage = () => {
                 <th className="pb-4 font-extrabold">Fecha</th>
                 <th className="pb-4 font-extrabold">Lote</th>
                 <th className="pb-4 font-extrabold text-right">Cantidad Total</th>
+                <th className="pb-4 font-extrabold text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -169,6 +181,15 @@ const CosechaPage = () => {
                   <td className="py-4 text-sm text-gray-500">{item.fecha}</td>
                   <td className="py-4 font-bold text-gray-800">{item.lote_nombre}</td>
                   <td className="py-4 font-black text-gray-900 text-right">{formatKg(item.kilos_total)}</td>
+                  <td className="py-4 text-right">
+                    <button 
+                      onClick={() => handleDelete(item.id)}
+                      className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                      title="Eliminar registro"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
                 </tr>
               ))}
               {cosechas.length === 0 && (
