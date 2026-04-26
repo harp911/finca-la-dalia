@@ -302,18 +302,18 @@ const VentasPage = () => {
                         </button>
                       )}
                       <button 
-                        onClick={() => generatePDF(venta)}
-                        className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
-                        title="Generar reporte PDF"
-                      >
-                        <FileText size={16} />
-                      </button>
-                      <button 
                         onClick={() => handleEdit(venta)}
                         className="p-2 text-gray-400 hover:text-primary transition-colors"
                         title="Editar liquidación"
                       >
                         <Edit3 size={16} />
+                      </button>
+                      <button 
+                        onClick={() => generatePDF(venta)}
+                        className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
+                        title="Generar reporte PDF"
+                      >
+                        <Download size={16} />
                       </button>
                       <button 
                         onClick={() => handleDelete(venta.id)}
