@@ -330,8 +330,8 @@ const VentasPage = () => {
 
               <div className="bg-gray-900 rounded-[2rem] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6">
                 <div>
-                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Total de Liquidación</p>
-                  <h4 className="text-5xl font-black text-primary">{formatCOP(calculateTotal())}</h4>
+                  <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1">Total de Liquidación</p>
+                  <h4 className="text-3xl font-black text-primary whitespace-nowrap">{formatCOP(calculateTotal())}</h4>
                 </div>
                 <div className="flex gap-4 w-full md:w-auto">
                   <button 
