@@ -49,13 +49,21 @@ const DashboardPage = () => {
         // 1. Cosecha Total
         const harvestTotal = cosechasData.reduce((acc, curr) => acc + (Number(curr.kilos_total) || 0), 0);
 
-        // 2. Ventas Totales
+        // 2. Ventas Totales (Facturado)
         const salesTotal = ventasData.reduce((acc, curr) => acc + (Number(curr.total_venta) || 0), 0);
 
-        // 3. Pagos Pendientes
-        const pending = ventasData.filter(v => v.estado_pago === 'Pendiente').length;
+        // 3. Total Recaudado (Pagado)
+        const collectedTotal = ventasData
+          .filter(v => v.estado_pago === 'Pagado')
+          .reduce((acc, curr) => acc + (Number(curr.total_venta) || 0), 0);
 
-        // 4. Production Chart (by week)
+        // 4. Cartera Pendiente (En COP)
+        const pendingBalance = salesTotal - collectedTotal;
+
+        // 5. Pagos Pendientes (Conteo)
+        const pendingCount = ventasData.filter(v => v.estado_pago === 'Pendiente').length;
+
+        // 6. Production Chart (by week)
         const weeksMap = {};
         cosechasData.forEach(c => {
           const sem = c.semana || 'N/A';
@@ -67,7 +75,7 @@ const DashboardPage = () => {
           .slice(-12)
           .map(sem => ({ name: sem, kilos: weeksMap[sem] }));
 
-        // 5. Quality Chart
+        // 7. Quality Chart
         const quality = {
           exportacion: ventasData.reduce((acc, v) => acc + (Number(v.cat_exportacion?.kg) || 0), 0),
           primera: ventasData.reduce((acc, v) => acc + (Number(v.cat_primera?.kg) || 0), 0),
@@ -85,7 +93,9 @@ const DashboardPage = () => {
         setStats({
           cosechaTotal: harvestTotal,
           ventasTotal: salesTotal,
-          pendientesCount: pending,
+          collectedTotal: collectedTotal,
+          pendingBalance: pendingBalance,
+          pendientesCount: pendingCount,
           productionChart,
           qualityChart,
           cosechas: cosechasData,
@@ -119,7 +129,7 @@ const DashboardPage = () => {
           </div>
           <div>
             <h2 className="text-2xl font-black text-gray-900">Análisis de Gestión {selectedYear}</h2>
-            <p className="text-gray-500 text-sm font-medium">Resumen de producción y comercialización</p>
+            <p className="text-gray-500 text-sm font-medium">Información enlazada y fiable de producción y finanzas</p>
           </div>
         </div>
         
@@ -144,36 +154,36 @@ const DashboardPage = () => {
       {/* Tarjetas KPI */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KPICard 
-          title="Producción Total" 
-          value={formatKg(stats.cosechaTotal)} 
-          subtitle={`Total acumulado en ${selectedYear}`} 
-          icon={<Leaf className="text-primary" />} 
-          trend={selectedYear === getCurrentYear() ? "En curso" : "Finalizado"} 
+          title="Ventas Totales" 
+          value={formatCOP(stats.ventasTotal)} 
+          subtitle="Total Facturado" 
+          icon={<ShoppingCart className="text-primary" />} 
+          trend={`${stats.ventas.length} ventas`} 
           color="primary"
         />
         <KPICard 
-          title="Ventas Totales" 
-          value={formatCOP(stats.ventasTotal)} 
-          subtitle="Liquidaciones generadas" 
-          icon={<DollarSign className="text-secondary" />} 
-          trend={`${stats.ventas.length} facturas`} 
-          color="secondary"
+          title="Total Recaudado" 
+          value={formatCOP(stats.collectedTotal)} 
+          subtitle="Dinero en Caja" 
+          icon={<CheckCircle className="text-green-500" />} 
+          trend="Pagado" 
+          color="green"
         />
         <KPICard 
-          title="Pendientes Cobro" 
-          value={stats.pendientesCount} 
-          subtitle="Ventas sin pago" 
-          icon={<AlertTriangle className="text-orange-500" />} 
-          trend="Cartera" 
+          title="Cartera Pendiente" 
+          value={formatCOP(stats.pendingBalance)} 
+          subtitle="Saldo por Cobrar" 
+          icon={<DollarSign className="text-orange-500" />} 
+          trend={`${stats.pendientesCount} facturas`} 
           color="orange"
-          isWarning={stats.pendientesCount > 0}
+          isWarning={stats.pendingBalance > 0}
         />
         <KPICard 
-          title="Precio Promedio" 
-          value={formatCOP(stats.ventasTotal / (stats.qualityChart.reduce((acc, q) => acc + q.value, 0) || 1))} 
-          subtitle="Global por Kg" 
-          icon={<TrendingUp className="text-blue-500" />} 
-          trend="Anual" 
+          title="Producción" 
+          value={formatKg(stats.cosechaTotal)} 
+          subtitle="Kilos Cosechados" 
+          icon={<Leaf className="text-blue-500" />} 
+          trend="Inventario" 
           color="blue"
         />
       </div>
