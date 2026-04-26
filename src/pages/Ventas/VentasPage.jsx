@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { collection, getDocs, query, orderBy, addDoc, where, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
-import { DollarSign, Plus, Download, TrendingUp, User, Calendar, CheckCircle2, AlertCircle, ShoppingCart, ArrowRight, Edit3, Trash2, CheckCircle } from 'lucide-react';
+import { DollarSign, Plus, Download, TrendingUp, User, Calendar, CheckCircle2, AlertCircle, ShoppingCart, ArrowRight, Edit3, Trash2, CheckCircle, FileText } from 'lucide-react';
 import { formatCOP, formatKg } from '../../utils/formatters';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
 const VentasPage = () => {
   const [ventas, setVentas] = useState([]);
@@ -113,6 +115,76 @@ const VentasPage = () => {
     } catch (error) {
       console.error("Error updating payment status:", error);
     }
+  };
+
+  const generatePDF = (venta) => {
+    const doc = new jsPDF();
+    const margin = 20;
+    
+    // Logo / Header
+    doc.setFillColor(34, 197, 94); // Primary color (green-500)
+    doc.roundedRect(margin, margin, 10, 10, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.text('L', margin + 3.5, margin + 7);
+    
+    doc.setTextColor(34, 197, 94);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Optifrutas', margin + 14, margin + 8);
+    
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Finca La Dalia - Reporte de Liquidación', margin + 14, margin + 14);
+
+    // Venta Info
+    doc.setDrawColor(240, 240, 240);
+    doc.line(margin, margin + 20, 210 - margin, margin + 20);
+    
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DETALLES DE LA VENTA', margin, margin + 30);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Cliente: ${venta.cliente}`, margin, margin + 40);
+    doc.text(`Lote: ${venta.lote_nombre}`, margin, margin + 45);
+    doc.text(`Fecha: ${venta.fecha}`, margin, margin + 50);
+    doc.text(`Semana: ${venta.semana}`, margin, margin + 55);
+    doc.text(`Estado: ${venta.estado_pago.toUpperCase()}`, margin, margin + 60);
+
+    // Table Data
+    const tableData = [
+      ['Categoría', 'Cantidad (Kg)', 'Precio/Kg', 'Subtotal'],
+      ['Exportación', formatKg(venta.cat_exportacion.kg), formatCOP(venta.cat_exportacion.precio), formatCOP(venta.cat_exportacion.kg * venta.cat_exportacion.precio)],
+      ['Primera', formatKg(venta.cat_primera.kg), formatCOP(venta.cat_primera.precio), formatCOP(venta.cat_primera.kg * venta.cat_primera.precio)],
+      ['Segunda', formatKg(venta.cat_segunda.kg), formatCOP(venta.cat_segunda.precio), formatCOP(venta.cat_segunda.kg * venta.cat_segunda.precio)],
+      ['Rechazo', formatKg(venta.cat_rechazo.kg), formatCOP(venta.cat_rechazo.precio), formatCOP(venta.cat_rechazo.kg * venta.cat_rechazo.precio)],
+    ];
+
+    doc.autoTable({
+      startY: margin + 70,
+      head: [tableData[0]],
+      body: tableData.slice(1),
+      theme: 'striped',
+      headStyles: { fillColor: [34, 197, 94] },
+      margin: { left: margin, right: margin }
+    });
+
+    // Total
+    const finalY = doc.lastAutoTable.finalY + 10;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`TOTAL LIQUIDACIÓN: ${formatCOP(venta.total_venta)}`, 210 - margin, finalY, { align: 'right' });
+
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Generado automáticamente por Finca La Dalia | Optifrutas', 105, 280, { align: 'center' });
+
+    doc.save(`liquidacion_${venta.cliente}_${venta.fecha}.pdf`);
   };
 
   return (
@@ -229,6 +301,13 @@ const VentasPage = () => {
                           <CheckCircle size={16} />
                         </button>
                       )}
+                      <button 
+                        onClick={() => generatePDF(venta)}
+                        className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
+                        title="Generar reporte PDF"
+                      >
+                        <FileText size={16} />
+                      </button>
                       <button 
                         onClick={() => handleEdit(venta)}
                         className="p-2 text-gray-400 hover:text-primary transition-colors"
