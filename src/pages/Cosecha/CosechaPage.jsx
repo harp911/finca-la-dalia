@@ -145,7 +145,12 @@ const CosechaPage = () => {
         <div className="card p-8 flex items-center justify-between">
           <div>
             <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Kilos Totales Semana</p>
-            <h3 className="text-4xl font-black mt-1 text-gray-900">{formatKg(12450)}</h3>
+            <h3 className="text-4xl font-black mt-1 text-gray-900">
+              {formatKg(cosechas
+                .filter(c => c.semana === getCurrentWeek() && c.año === getCurrentYear())
+                .reduce((acc, curr) => acc + (Number(curr.kilos_total) || 0), 0)
+              )}
+            </h3>
           </div>
           <div className="w-16 h-16 bg-primary-light rounded-2xl flex items-center justify-center text-primary">
             <TrendingUpIcon size={32} />
@@ -154,7 +159,12 @@ const CosechaPage = () => {
         <div className="card p-8 flex items-center justify-between">
           <div>
             <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Lotes Cosechados</p>
-            <h3 className="text-4xl font-black mt-1 text-gray-900">4 / {lotes.length}</h3>
+            <h3 className="text-4xl font-black mt-1 text-gray-900">
+              {new Set(cosechas
+                .filter(c => c.semana === getCurrentWeek() && c.año === getCurrentYear())
+                .map(c => c.lote_id)
+              ).size} / {lotes.length}
+            </h3>
           </div>
           <div className="w-16 h-16 bg-secondary-light rounded-2xl flex items-center justify-center text-secondary">
             <CheckCircle2 size={32} />

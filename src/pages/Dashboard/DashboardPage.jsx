@@ -4,11 +4,11 @@ import {
   PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
 import { 
-  Leaf, DollarSign, Users, Truck, AlertTriangle, Calendar, TrendingUp, ArrowUpRight, Filter, Loader2
+  Leaf, DollarSign, Users, Truck, AlertTriangle, Calendar, TrendingUp, ArrowUpRight, Filter, Loader2, ShoppingCart, CheckCircle
 } from 'lucide-react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/config';
-import { getCurrentWeek, getWeekRange, getCurrentYear } from '../../utils/weekUtils';
+import { getCurrentWeek, getCurrentYear } from '../../utils/weekUtils';
 import { formatCOP, formatKg } from '../../utils/formatters';
 
 const DashboardPage = () => {
@@ -17,6 +17,8 @@ const DashboardPage = () => {
   const [stats, setStats] = useState({
     cosechaTotal: 0,
     ventasTotal: 0,
+    collectedTotal: 0,
+    pendingBalance: 0,
     pendientesCount: 0,
     productionChart: [],
     qualityChart: [],
@@ -29,7 +31,7 @@ const DashboardPage = () => {
   useEffect(() => {
     setLoading(true);
     
-    // Real-time listener for Cosechas
+    // 1. Real-time listener for Cosechas
     const qCosechas = query(
       collection(db, 'cosechas'), 
       where('año', '==', Number(selectedYear))
@@ -38,7 +40,7 @@ const DashboardPage = () => {
     const unsubscribeCosechas = onSnapshot(qCosechas, (cosechasSnap) => {
       const cosechasData = cosechasSnap.docs.map(doc => doc.data());
       
-      // Real-time listener for Ventas
+      // 2. Real-time listener for Ventas
       const qVentas = query(collection(db, 'ventas'));
       
       const unsubscribeVentas = onSnapshot(qVentas, (ventasSnap) => {
@@ -46,24 +48,16 @@ const DashboardPage = () => {
           .map(doc => doc.data())
           .filter(v => (v.año === Number(selectedYear)) || (new Date(v.fecha).getFullYear() === Number(selectedYear)));
 
-        // 1. Cosecha Total
-        const harvestTotal = cosechasData.reduce((acc, curr) => acc + (Number(curr.kilos_total) || 0), 0);
-
-        // 2. Ventas Totales (Facturado)
-        const salesTotal = ventasData.reduce((acc, curr) => acc + (Number(curr.total_venta) || 0), 0);
-
-        // 3. Total Recaudado (Pagado)
+        // --- CALCULATIONS ---
+        const harvestTotal = cosechasData.reduce((acc, c) => acc + (Number(c.kilos_total) || 0), 0);
+        const salesTotal = ventasData.reduce((acc, v) => acc + (Number(v.total_venta) || 0), 0);
         const collectedTotal = ventasData
           .filter(v => v.estado_pago === 'Pagado')
-          .reduce((acc, curr) => acc + (Number(curr.total_venta) || 0), 0);
-
-        // 4. Cartera Pendiente (En COP)
+          .reduce((acc, v) => acc + (Number(v.total_venta) || 0), 0);
         const pendingBalance = salesTotal - collectedTotal;
-
-        // 5. Pagos Pendientes (Conteo)
         const pendingCount = ventasData.filter(v => v.estado_pago === 'Pendiente').length;
 
-        // 6. Production Chart (by week)
+        // Production Chart (by week)
         const weeksMap = {};
         cosechasData.forEach(c => {
           const sem = c.semana || 'N/A';
@@ -75,7 +69,7 @@ const DashboardPage = () => {
           .slice(-12)
           .map(sem => ({ name: sem, kilos: weeksMap[sem] }));
 
-        // 7. Quality Chart
+        // Quality Chart
         const quality = {
           exportacion: ventasData.reduce((acc, v) => acc + (Number(v.cat_exportacion?.kg) || 0), 0),
           primera: ventasData.reduce((acc, v) => acc + (Number(v.cat_primera?.kg) || 0), 0),
@@ -113,7 +107,7 @@ const DashboardPage = () => {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center">
+      <div className="h-full flex items-center justify-center p-20">
         <Loader2 className="animate-spin text-primary" size={48} />
       </div>
     );
@@ -190,7 +184,6 @@ const DashboardPage = () => {
 
       {/* Gráficas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Producción Semanal */}
         <div className="card h-[400px]">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-gray-800">Volumen de Cosecha por Semana</h3>
@@ -223,7 +216,6 @@ const DashboardPage = () => {
           )}
         </div>
 
-        {/* Distribución de Calidad */}
         <div className="card h-[400px]">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-gray-800">Balance de Calidad Anual</h3>
@@ -276,7 +268,7 @@ const DashboardPage = () => {
 const KPICard = ({ title, value, subtitle, icon, trend, color, isWarning }) => (
   <div className="card group hover:scale-[1.02] transition-all duration-300 border-none shadow-sm">
     <div className="flex items-start justify-between">
-      <div className={`p-3 rounded-2xl bg-${color}-light/50 group-hover:scale-110 transition-transform`}>
+      <div className={`p-3 rounded-2xl bg-${color}-light group-hover:scale-110 transition-transform`}>
         {icon}
       </div>
       <span className={`text-[10px] font-black px-2 py-1 rounded ${isWarning ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
@@ -289,12 +281,6 @@ const KPICard = ({ title, value, subtitle, icon, trend, color, isWarning }) => (
       <p className="text-xs text-gray-400 mt-1 font-medium italic">{subtitle}</p>
     </div>
   </div>
-);
-
-const Loader2 = ({ className, size }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-  </svg>
 );
 
 export default DashboardPage;

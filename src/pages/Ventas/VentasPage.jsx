@@ -223,14 +223,14 @@ const VentasPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KPIVenta 
           title="Ventas Totales" 
-          value={formatCOP(ventas.reduce((acc, curr) => acc + curr.total_venta, 0))} 
+          value={formatCOP(ventas.reduce((acc, curr) => acc + (Number(curr.total_venta) || 0), 0))} 
           trend="Total Histórico" 
           icon={<TrendingUp className="text-primary" />} 
         />
         <KPIVenta 
           title="Kilos Liquidados" 
           value={formatKg(ventas.reduce((acc, curr) => acc + 
-            (Number(curr.cat_exportacion.kg) + Number(curr.cat_primera.kg) + Number(curr.cat_segunda.kg) + Number(curr.cat_rechazo.kg)), 0))} 
+            (Number(curr.cat_exportacion?.kg || 0) + Number(curr.cat_primera?.kg || 0) + Number(curr.cat_segunda?.kg || 0) + Number(curr.cat_rechazo?.kg || 0)), 0))} 
           trend="Exportación + Local" 
           icon={<ShoppingCart className="text-secondary" />} 
         />
@@ -239,12 +239,15 @@ const VentasPage = () => {
           value={ventas.filter(v => v.estado_pago === 'Pendiente').length} 
           trend="Facturas" 
           icon={<AlertCircle className="text-orange-500" />} 
-          isWarning
+          isWarning={ventas.some(v => v.estado_pago === 'Pendiente')}
         />
         <KPIVenta 
           title="Precio Promedio" 
-          value={formatCOP(2850)} 
-          trend="Referencia 1ª" 
+          value={formatCOP(ventas.reduce((acc, curr) => acc + (Number(curr.total_venta) || 0), 0) / (
+            ventas.reduce((acc, curr) => acc + 
+              (Number(curr.cat_exportacion?.kg || 0) + Number(curr.cat_primera?.kg || 0) + Number(curr.cat_segunda?.kg || 0) + Number(curr.cat_rechazo?.kg || 0)), 0) || 1
+          ))} 
+          trend="Global / Kg" 
           icon={<CheckCircle2 className="text-blue-500" />} 
         />
       </div>
