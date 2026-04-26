@@ -57,6 +57,7 @@ const VentasPage = () => {
         total_venta: calculateTotal(),
         lote_nombre: cosecha?.lote_nombre || 'Desconocido',
         semana: cosecha?.semana || 'N/A',
+        año: cosecha?.año || new Date(formData.fecha).getFullYear(),
         timestamp: new Date().toISOString()
       };
 

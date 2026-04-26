@@ -4,9 +4,9 @@ import {
   PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
 import { 
-  Leaf, DollarSign, Users, Truck, AlertTriangle, Calendar, TrendingUp, ArrowUpRight, Filter
+  Leaf, DollarSign, Users, Truck, AlertTriangle, Calendar, TrendingUp, ArrowUpRight, Filter, Loader2
 } from 'lucide-react';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { getCurrentWeek, getWeekRange, getCurrentYear } from '../../utils/weekUtils';
 import { formatCOP, formatKg } from '../../utils/formatters';
@@ -27,84 +27,79 @@ const DashboardPage = () => {
   const years = [2026, 2025, 2024, 2023];
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [selectedYear]);
-
-  const fetchDashboardData = async () => {
     setLoading(true);
-    try {
-      // Fetch Cosechas of the year
-      const cosechasRef = collection(db, 'cosechas');
-      const qCosechas = query(cosechasRef, where('año', '==', Number(selectedYear)));
-      const cosechasSnap = await getDocs(qCosechas);
+    
+    // Real-time listener for Cosechas
+    const qCosechas = query(
+      collection(db, 'cosechas'), 
+      where('año', '==', Number(selectedYear))
+    );
+    
+    const unsubscribeCosechas = onSnapshot(qCosechas, (cosechasSnap) => {
       const cosechasData = cosechasSnap.docs.map(doc => doc.data());
+      
+      // Real-time listener for Ventas
+      const qVentas = query(collection(db, 'ventas'));
+      
+      const unsubscribeVentas = onSnapshot(qVentas, (ventasSnap) => {
+        const ventasData = ventasSnap.docs
+          .map(doc => doc.data())
+          .filter(v => (v.año === Number(selectedYear)) || (new Date(v.fecha).getFullYear() === Number(selectedYear)));
 
-      // Fetch Ventas of the year
-      // Note: We use the 'fecha' string to extract year since 'año' might not be in all records
-      const ventasRef = collection(db, 'ventas');
-      const ventasSnap = await getDocs(ventasRef);
-      const ventasData = ventasSnap.docs
-        .map(doc => doc.data())
-        .filter(v => new Date(v.fecha).getFullYear() === Number(selectedYear));
+        // 1. Cosecha Total
+        const harvestTotal = cosechasData.reduce((acc, curr) => acc + (Number(curr.kilos_total) || 0), 0);
 
-      // 1. Cosecha Total
-      const harvestTotal = cosechasData.reduce((acc, curr) => acc + (curr.kilos_total || 0), 0);
+        // 2. Ventas Totales
+        const salesTotal = ventasData.reduce((acc, curr) => acc + (Number(curr.total_venta) || 0), 0);
 
-      // 2. Ventas Totales
-      const salesTotal = ventasData.reduce((acc, curr) => acc + (curr.total_venta || 0), 0);
+        // 3. Pagos Pendientes
+        const pending = ventasData.filter(v => v.estado_pago === 'Pendiente').length;
 
-      // 3. Pagos Pendientes
-      const pending = ventasData.filter(v => v.estado_pago === 'Pendiente').length;
+        // 4. Production Chart (by week)
+        const weeksMap = {};
+        cosechasData.forEach(c => {
+          const sem = c.semana || 'N/A';
+          weeksMap[sem] = (weeksMap[sem] || 0) + (Number(c.kilos_total) || 0);
+        });
 
-      // 4. Production Chart (by week)
-      const weeksMap = {};
-      cosechasData.forEach(c => {
-        const sem = c.semana || 'N/A';
-        weeksMap[sem] = (weeksMap[sem] || 0) + (curr.kilos_total || 0);
-      });
-      // Wait, fix logic above (curr is not defined)
-      const weeksMapFixed = {};
-      cosechasData.forEach(c => {
-        const sem = c.semana || 'N/A';
-        weeksMapFixed[sem] = (weeksMapFixed[sem] || 0) + (c.kilos_total || 0);
-      });
+        const productionChart = Object.keys(weeksMap)
+          .sort()
+          .slice(-12)
+          .map(sem => ({ name: sem, kilos: weeksMap[sem] }));
 
-      const productionChart = Object.keys(weeksMapFixed)
-        .sort()
-        .slice(-8) // Last 8 weeks with data
-        .map(sem => ({ name: sem, kilos: weeksMapFixed[sem] }));
+        // 5. Quality Chart
+        const quality = {
+          exportacion: ventasData.reduce((acc, v) => acc + (Number(v.cat_exportacion?.kg) || 0), 0),
+          primera: ventasData.reduce((acc, v) => acc + (Number(v.cat_primera?.kg) || 0), 0),
+          segunda: ventasData.reduce((acc, v) => acc + (Number(v.cat_segunda?.kg) || 0), 0),
+          rechazo: ventasData.reduce((acc, v) => acc + (Number(v.cat_rechazo?.kg) || 0), 0),
+        };
 
-      // 5. Quality Chart (from Ventas data)
-      const quality = {
-        exportacion: ventasData.reduce((acc, v) => acc + (Number(v.cat_exportacion?.kg) || 0), 0),
-        primera: ventasData.reduce((acc, v) => acc + (Number(v.cat_primera?.kg) || 0), 0),
-        segunda: ventasData.reduce((acc, v) => acc + (Number(v.cat_segunda?.kg) || 0), 0),
-        rechazo: ventasData.reduce((acc, v) => acc + (Number(v.cat_rechazo?.kg) || 0), 0),
-      };
+        const qualityChart = [
+          { name: 'Exportación', value: quality.exportacion, color: '#2563EB' },
+          { name: 'Primera', value: quality.primera, color: '#6DC010' },
+          { name: 'Segunda', value: quality.segunda, color: '#F47920' },
+          { name: 'Rechazo', value: quality.rechazo, color: '#DC2626' },
+        ].filter(q => q.value > 0);
 
-      const qualityChart = [
-        { name: 'Exportación', value: quality.exportacion, color: '#2563EB' },
-        { name: 'Primera', value: quality.primera, color: '#6DC010' },
-        { name: 'Segunda', value: quality.segunda, color: '#F47920' },
-        { name: 'Rechazo', value: quality.rechazo, color: '#DC2626' },
-      ].filter(q => q.value > 0);
-
-      setStats({
-        cosechaTotal: harvestTotal,
-        ventasTotal: salesTotal,
-        pendientesCount: pending,
-        productionChart,
-        qualityChart,
-        cosechas: cosechasData,
-        ventas: ventasData
+        setStats({
+          cosechaTotal: harvestTotal,
+          ventasTotal: salesTotal,
+          pendientesCount: pending,
+          productionChart,
+          qualityChart,
+          cosechas: cosechasData,
+          ventas: ventasData
+        });
+        
+        setLoading(false);
       });
 
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return () => unsubscribeVentas();
+    });
+
+    return () => unsubscribeCosechas();
+  }, [selectedYear]);
 
   if (loading) {
     return (
