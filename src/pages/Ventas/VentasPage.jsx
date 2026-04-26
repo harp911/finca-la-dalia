@@ -3,8 +3,8 @@ import { collection, getDocs, query, orderBy, addDoc, where, deleteDoc, doc, upd
 import { db } from '../../firebase/config';
 import { DollarSign, Plus, Download, TrendingUp, User, Calendar, CheckCircle2, AlertCircle, ShoppingCart, ArrowRight, Edit3, Trash2, CheckCircle, FileText } from 'lucide-react';
 import { formatCOP, formatKg } from '../../utils/formatters';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const VentasPage = () => {
   const [ventas, setVentas] = useState([]);
@@ -164,7 +164,7 @@ const VentasPage = () => {
       ['Rechazo', formatKg(venta.cat_rechazo.kg), formatCOP(venta.cat_rechazo.precio), formatCOP(venta.cat_rechazo.kg * venta.cat_rechazo.precio)],
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: margin + 70,
       head: [tableData[0]],
       body: tableData.slice(1),
@@ -195,7 +195,7 @@ const VentasPage = () => {
             <DollarSign className="text-primary" size={32} />
             Ventas y Comercialización
           </h2>
-          <p className="text-gray-500 font-medium">Seguimiento de facturación y despacho de limón Tahití</p>
+          <p className="text-gray-500 font-medium italic">Seguimiento de facturación y despacho de limón Tahití • 2026</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
