@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { collection, getDocs, query, orderBy, addDoc, where } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { DollarSign, Plus, Download, TrendingUp, User, Calendar, CheckCircle2, AlertCircle, ShoppingCart, ArrowRight } from 'lucide-react';
