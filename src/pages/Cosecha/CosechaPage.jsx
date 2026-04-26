@@ -31,7 +31,7 @@ const CosechaPage = () => {
       setLotes(lotesData);
 
       // Fetch cosechas
-      const q = query(collection(db, 'cosechas'), orderBy('timestamp', 'desc'));
+      const q = query(collection(db, 'cosechas'), orderBy('fecha', 'desc'));
       const cosechasSnapshot = await getDocs(q);
       const cosechasData = cosechasSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setCosechas(cosechasData);

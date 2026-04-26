@@ -32,7 +32,7 @@ const VentasPage = () => {
       const ventasSnapshot = await getDocs(query(collection(db, 'ventas'), orderBy('timestamp', 'desc')));
       setVentas(ventasSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-      const cosechasSnapshot = await getDocs(query(collection(db, 'cosechas'), orderBy('timestamp', 'desc')));
+      const cosechasSnapshot = await getDocs(query(collection(db, 'cosechas'), orderBy('fecha', 'desc')));
       setCosechas(cosechasSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
       console.error("Error fetching ventas:", error);
@@ -390,9 +390,11 @@ const VentasPage = () => {
                     value={formData.cosecha_id} onChange={(e) => setFormData({...formData, cosecha_id: e.target.value})}
                   >
                     <option value="">Selecciona una cosecha...</option>
-                    {cosechas.map(c => (
-                      <option key={c.id} value={c.id}>{c.fecha} - {c.lote_nombre} ({formatKg(c.kilos_total)})</option>
-                    ))}
+                    {cosechas
+                      .filter(c => !ventas.some(v => v.cosecha_id === c.id) || c.id === formData.cosecha_id)
+                      .map(c => (
+                        <option key={c.id} value={c.id}>{c.fecha} - {c.lote_nombre} ({formatKg(c.kilos_total)})</option>
+                      ))}
                   </select>
                 </div>
                 <div className="md:col-span-1">
