@@ -50,6 +50,17 @@ const DashboardPage = () => {
 
         // --- CALCULATIONS ---
         const harvestTotal = cosechasData.reduce((acc, c) => acc + (Number(c.kilos_total) || 0), 0);
+        
+        // Calculate total Kg from sales (sum of all categories)
+        const salesKgTotal = ventasData.reduce((acc, v) => acc + 
+          (Number(v.cat_exportacion?.kg || 0) + 
+           Number(v.cat_primera?.kg || 0) + 
+           Number(v.cat_segunda?.kg || 0) + 
+           Number(v.cat_rechazo?.kg || 0)), 0);
+
+        // Production is the maximum of both (as a fallback for historical data)
+        const displayProduction = Math.max(harvestTotal, salesKgTotal);
+
         const salesTotal = ventasData.reduce((acc, v) => acc + (Number(v.total_venta) || 0), 0);
         const collectedTotal = ventasData
           .filter(v => v.estado_pago === 'Pagado')
@@ -59,9 +70,23 @@ const DashboardPage = () => {
 
         // Production Chart (by week)
         const weeksMap = {};
+        // Add harvest data
         cosechasData.forEach(c => {
           const sem = c.semana || 'N/A';
           weeksMap[sem] = (weeksMap[sem] || 0) + (Number(c.kilos_total) || 0);
+        });
+        
+        // Fallback: If a week has sales but no harvest data, use sales kg
+        ventasData.forEach(v => {
+          const sem = v.semana || 'N/A';
+          const vKg = (Number(v.cat_exportacion?.kg || 0) + 
+                      Number(v.cat_primera?.kg || 0) + 
+                      Number(v.cat_segunda?.kg || 0) + 
+                      Number(v.cat_rechazo?.kg || 0));
+          
+          if (!weeksMap[sem] || weeksMap[sem] < vKg) {
+            weeksMap[sem] = vKg;
+          }
         });
 
         const productionChart = Object.keys(weeksMap)
@@ -85,7 +110,7 @@ const DashboardPage = () => {
         ].filter(q => q.value > 0);
 
         setStats({
-          cosechaTotal: harvestTotal,
+          cosechaTotal: displayProduction,
           ventasTotal: salesTotal,
           collectedTotal: collectedTotal,
           pendingBalance: pendingBalance,
