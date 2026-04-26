@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, getDocs, query, orderBy, addDoc, where, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
-import { DollarSign, Plus, Download, TrendingUp, User, Calendar, CheckCircle2, AlertCircle, ShoppingCart, ArrowRight, Edit3, Trash2 } from 'lucide-react';
+import { DollarSign, Plus, Download, TrendingUp, User, Calendar, CheckCircle2, AlertCircle, ShoppingCart, ArrowRight, Edit3, Trash2, CheckCircle } from 'lucide-react';
 import { formatCOP, formatKg } from '../../utils/formatters';
 
 const VentasPage = () => {
@@ -101,6 +101,17 @@ const VentasPage = () => {
       } catch (error) {
         console.error("Error deleting venta:", error);
       }
+    }
+  };
+
+  const handleMarkAsPaid = async (id) => {
+    try {
+      await updateDoc(doc(db, 'ventas', id), {
+        estado_pago: 'Pagado'
+      });
+      fetchData();
+    } catch (error) {
+      console.error("Error updating payment status:", error);
     }
   };
 
@@ -209,6 +220,15 @@ const VentasPage = () => {
                   </td>
                   <td className="py-5 text-right">
                     <div className="flex justify-end gap-2">
+                      {venta.estado_pago === 'Pendiente' && (
+                        <button 
+                          onClick={() => handleMarkAsPaid(venta.id)}
+                          className="p-2 text-gray-400 hover:text-green-500 transition-colors"
+                          title="Marcar como pagado"
+                        >
+                          <CheckCircle size={16} />
+                        </button>
+                      )}
                       <button 
                         onClick={() => handleEdit(venta)}
                         className="p-2 text-gray-400 hover:text-primary transition-colors"
