@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy, addDoc, where } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, addDoc, where, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
-import { DollarSign, Plus, Download, TrendingUp, User, Calendar, CheckCircle2, AlertCircle, ShoppingCart, ArrowRight } from 'lucide-react';
+import { DollarSign, Plus, Download, TrendingUp, User, Calendar, CheckCircle2, AlertCircle, ShoppingCart, ArrowRight, Edit3, Trash2 } from 'lucide-react';
 import { formatCOP, formatKg } from '../../utils/formatters';
 
 const VentasPage = () => {
@@ -9,6 +9,7 @@ const VentasPage = () => {
   const [cosechas, setCosechas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     cliente: '',
     cosecha_id: '',
@@ -49,14 +50,22 @@ const VentasPage = () => {
     e.preventDefault();
     try {
       const cosecha = cosechas.find(c => c.id === formData.cosecha_id);
-      await addDoc(collection(db, 'ventas'), {
+      const dataToSave = {
         ...formData,
         total_venta: calculateTotal(),
         lote_nombre: cosecha?.lote_nombre || 'Desconocido',
         semana: cosecha?.semana || 'N/A',
         timestamp: new Date().toISOString()
-      });
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, 'ventas', editingId), dataToSave);
+      } else {
+        await addDoc(collection(db, 'ventas'), dataToSave);
+      }
+
       setIsModalOpen(false);
+      setEditingId(null);
       setFormData({
         cliente: '', cosecha_id: '', fecha: new Date().toISOString().split('T')[0],
         cat_exportacion: { kg: 0, precio: 0 }, cat_primera: { kg: 0, precio: 0 },
@@ -66,6 +75,32 @@ const VentasPage = () => {
       fetchData();
     } catch (error) {
       console.error("Error saving venta:", error);
+    }
+  };
+
+  const handleEdit = (venta) => {
+    setFormData({
+      cliente: venta.cliente,
+      cosecha_id: venta.cosecha_id,
+      fecha: venta.fecha,
+      cat_exportacion: venta.cat_exportacion,
+      cat_primera: venta.cat_primera,
+      cat_segunda: venta.cat_segunda,
+      cat_rechazo: venta.cat_rechazo,
+      estado_pago: venta.estado_pago
+    });
+    setEditingId(venta.id);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('¿Estás seguro de eliminar esta liquidación?')) {
+      try {
+        await deleteDoc(doc(db, 'ventas', id));
+        fetchData();
+      } catch (error) {
+        console.error("Error deleting venta:", error);
+      }
     }
   };
 
@@ -135,6 +170,7 @@ const VentasPage = () => {
                 <th className="pb-4">Desglose Categorías</th>
                 <th className="pb-4 text-right">Total Venta</th>
                 <th className="pb-4 text-center">Estado</th>
+                <th className="pb-4 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -171,6 +207,24 @@ const VentasPage = () => {
                       {venta.estado_pago}
                     </span>
                   </td>
+                  <td className="py-5 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        onClick={() => handleEdit(venta)}
+                        className="p-2 text-gray-400 hover:text-primary transition-colors"
+                        title="Editar liquidación"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(venta.id)}
+                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                        title="Eliminar liquidación"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {ventas.length === 0 && (
@@ -191,8 +245,12 @@ const VentasPage = () => {
           <div className="bg-white rounded-[2rem] w-full max-w-4xl p-10 shadow-2xl animate-in zoom-in duration-200 overflow-y-auto max-h-[90vh]">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h3 className="text-3xl font-black text-gray-900">Nueva Liquidación</h3>
-                <p className="text-gray-500 text-sm font-medium">Asigna categorías y precios a una cosecha</p>
+                <h3 className="text-3xl font-black text-gray-900">
+                  {editingId ? 'Editar Liquidación' : 'Nueva Liquidación'}
+                </h3>
+                <p className="text-gray-500 text-sm font-medium">
+                  {editingId ? 'Actualiza los datos de la liquidación' : 'Asigna categorías y precios a una cosecha'}
+                </p>
               </div>
               <DollarSign size={48} className="text-primary/20" />
             </div>
@@ -256,9 +314,18 @@ const VentasPage = () => {
                   <h4 className="text-5xl font-black text-primary">{formatCOP(calculateTotal())}</h4>
                 </div>
                 <div className="flex gap-4 w-full md:w-auto">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-8 py-4 font-bold text-gray-400 hover:text-white transition-colors">Cancelar</button>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      setEditingId(null);
+                    }} 
+                    className="flex-1 px-8 py-4 font-bold text-gray-400 hover:text-white transition-colors"
+                  >
+                    Cancelar
+                  </button>
                   <button type="submit" className="flex-[2] btn-primary px-12 py-4 text-lg flex items-center justify-center gap-2">
-                    Confirmar Venta <ArrowRight size={20} />
+                    {editingId ? 'Actualizar Liquidación' : 'Confirmar Venta'} <ArrowRight size={20} />
                   </button>
                 </div>
               </div>
