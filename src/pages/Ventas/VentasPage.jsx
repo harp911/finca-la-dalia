@@ -281,6 +281,14 @@ const VentasPage = () => {
                       <span className="text-gray-500"><b className="text-secondary">2ª:</b> {formatKg(venta.cat_segunda.kg)}</span>
                       <span className="text-gray-500"><b className="text-red-500">RECH:</b> {formatKg(venta.cat_rechazo.kg)}</span>
                     </div>
+                    <p className="text-[9px] font-bold text-primary mt-1">
+                      Promedio: {formatCOP(venta.total_venta / (
+                        Number(venta.cat_exportacion.kg || 0) + 
+                        Number(venta.cat_primera.kg || 0) + 
+                        Number(venta.cat_segunda.kg || 0) + 
+                        Number(venta.cat_rechazo.kg || 0) || 1
+                      ))}/kg
+                    </p>
                   </td>
                   <td className="py-5 font-black text-gray-900 text-right">{formatCOP(venta.total_venta)}</td>
                   <td className="py-5 text-center">
