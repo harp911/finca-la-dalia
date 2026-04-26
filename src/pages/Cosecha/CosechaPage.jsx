@@ -4,6 +4,7 @@ import { db } from '../../firebase/config';
 import { Leaf, Plus, Calendar, Filter, Download, CheckCircle2, Clock, Trash2 } from 'lucide-react';
 import { getWeekNumber, getCurrentWeek, getCurrentYear } from '../../utils/weekUtils';
 import { formatKg } from '../../utils/formatters';
+import BulkUploadModal from '../../components/Cosecha/BulkUploadModal';
 
 const CosechaPage = () => {
   const [cosechas, setCosechas] = useState([]);
@@ -16,6 +17,7 @@ const CosechaPage = () => {
     observaciones: ''
   });
   const [tempLote, setTempLote] = useState({ id: '', kilos: '' });
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -111,6 +113,13 @@ const CosechaPage = () => {
         <div className="flex gap-3">
           <button className="p-3 bg-white border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50 transition-colors">
             <Filter size={20} />
+          </button>
+          <button 
+            onClick={() => setIsBulkModalOpen(true)}
+            className="px-6 py-3 bg-white border border-primary text-primary font-bold rounded-xl hover:bg-primary-light transition-colors flex items-center gap-2"
+          >
+            <Download size={20} className="rotate-180" />
+            Carga Masiva
           </button>
           <button 
             onClick={() => setIsModalOpen(true)}
@@ -306,6 +315,13 @@ const CosechaPage = () => {
           </div>
         </div>
       )}
+
+      <BulkUploadModal 
+        isOpen={isBulkModalOpen}
+        onClose={() => setIsBulkModalOpen(false)}
+        lotes={lotes}
+        onUploadSuccess={fetchData}
+      />
     </div>
   );
 };
