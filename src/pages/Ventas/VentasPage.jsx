@@ -174,10 +174,22 @@ const VentasPage = () => {
     });
 
     // Total
-    const finalY = doc.lastAutoTable.finalY + 10;
+    const finalY = doc.lastAutoTable.finalY + 12;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
     doc.text(`TOTAL LIQUIDACIÓN: ${formatCOP(venta.total_venta)}`, 210 - margin, finalY, { align: 'right' });
+
+    // Average Price
+    const totalKilos = Number(venta.cat_exportacion.kg || 0) + 
+                       Number(venta.cat_primera.kg || 0) + 
+                       Number(venta.cat_segunda.kg || 0) + 
+                       Number(venta.cat_rechazo.kg || 0) || 1;
+    const avgPrice = venta.total_venta / totalKilos;
+    
+    doc.setFontSize(11);
+    doc.setTextColor(34, 197, 94); // Primary green
+    doc.text(`Precio Promedio por Kilo: ${formatCOP(avgPrice)}/kg`, 210 - margin, finalY + 8, { align: 'right' });
 
     // Footer
     doc.setFontSize(8);
