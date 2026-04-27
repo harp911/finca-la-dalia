@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, query, orderBy, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, where, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { 
   Users, UserPlus, Receipt, Download, Search, CheckCircle, Clock, 
-  MoreVertical, Calendar, Plus, Trash2, ClipboardList
+  MoreVertical, Calendar, Plus, Trash2, ClipboardList, Edit2
 } from 'lucide-react';
 import { formatCOP } from '../../utils/formatters';
 
@@ -12,6 +12,7 @@ const PersonalPage = () => {
   const [trabajadores, setTrabajadores] = useState([]);
   const [jornales, setJornales] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
@@ -57,15 +58,52 @@ const PersonalPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'trabajadores'), {
-        ...formData,
-        fecha_registro: new Date().toISOString()
-      });
+      if (editingId) {
+        await updateDoc(doc(db, 'trabajadores', editingId), formData);
+        alert("Trabajador actualizado con éxito");
+      } else {
+        await addDoc(collection(db, 'trabajadores'), {
+          ...formData,
+          fecha_registro: new Date().toISOString()
+        });
+        alert("Trabajador registrado con éxito");
+      }
       setIsModalOpen(false);
+      setEditingId(null);
       setFormData({ nombre: '', cedula: '', cargo: 'Jornalero', valor_jornal: '', estado: 'activo' });
       fetchTrabajadores();
     } catch (error) {
-      console.error("Error adding worker:", error);
+      console.error("Error saving worker:", error);
+      alert("Error al guardar trabajador");
+    }
+  };
+
+  const handleEditWorker = (worker) => {
+    setEditingId(worker.id);
+    setFormData({
+      nombre: worker.nombre,
+      cedula: worker.cedula,
+      cargo: worker.cargo,
+      valor_jornal: worker.valor_jornal,
+      estado: worker.estado
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteWorker = async (id) => {
+    if (window.confirm("¿Estás seguro de eliminar este trabajador? Esto no eliminará sus jornales previos por integridad histórica.")) {
+      try {
+        await deleteDoc(doc(db, 'trabajadores', id));
+        fetchTrabajadores();
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  };
+
+  const handleDeleteJornal = async (id) => {
+    if (window.confirm("¿Eliminar este registro de jornal?")) {
+      await deleteDoc(doc(db, 'jornales', id));
     }
   };
 
@@ -229,9 +267,19 @@ const PersonalPage = () => {
                   <div className="w-12 h-12 bg-primary-light rounded-2xl flex items-center justify-center text-primary font-bold text-xl">
                     {t.nombre.charAt(0)}
                   </div>
-                  <span className={`text-[10px] font-black uppercase px-2 py-1 rounded ${t.estado === 'activo' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                    {t.estado}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-black uppercase px-2 py-1 rounded ${t.estado === 'activo' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                      {t.estado}
+                    </span>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => handleEditWorker(t)} className="p-1.5 bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary-light rounded-lg transition-all">
+                        <Edit2 size={14} />
+                      </button>
+                      <button onClick={() => handleDeleteWorker(t.id)} className="p-1.5 bg-gray-100 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900 text-lg">{t.nombre}</h3>
@@ -368,8 +416,10 @@ const PersonalPage = () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-[2rem] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in duration-200">
             <h3 className="text-2xl font-black text-gray-900 mb-6 flex items-center gap-3">
-              <div className="p-2 bg-primary-light text-primary rounded-xl"><UserPlus size={20}/></div>
-              Registrar Nuevo Trabajador
+              <div className="p-2 bg-primary-light text-primary rounded-xl">
+                {editingId ? <Edit2 size={20}/> : <UserPlus size={20}/>}
+              </div>
+              {editingId ? 'Editar Trabajador' : 'Registrar Nuevo Trabajador'}
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -431,8 +481,10 @@ const PersonalPage = () => {
                 </div>
               </div>
               <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 px-4 rounded-xl border border-gray-200 font-bold text-gray-500 hover:bg-gray-50 transition-colors">Cancelar</button>
-                <button type="submit" className="flex-1 btn-primary py-3 px-4 shadow-lg shadow-primary/20">Guardar Trabajador</button>
+                <button type="button" onClick={() => { setIsModalOpen(false); setEditingId(null); setFormData({ nombre: '', cedula: '', cargo: 'Jornalero', valor_jornal: '', estado: 'activo' }); }} className="flex-1 py-3 px-4 rounded-xl border border-gray-200 font-bold text-gray-500 hover:bg-gray-50 transition-colors">Cancelar</button>
+                <button type="submit" className="flex-1 btn-primary py-3 px-4 shadow-lg shadow-primary/20">
+                  {editingId ? 'Actualizar Información' : 'Guardar Trabajador'}
+                </button>
               </div>
             </form>
           </div>
