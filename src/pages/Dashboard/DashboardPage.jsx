@@ -20,10 +20,12 @@ const DashboardPage = () => {
     collectedTotal: 0,
     pendingBalance: 0,
     pendientesCount: 0,
+    laboresMes: 0,
     productionChart: [],
     qualityChart: [],
     cosechas: [],
-    ventas: []
+    ventas: [],
+    actividades: []
   });
 
   const years = [2026, 2025, 2024, 2023];
@@ -48,80 +50,86 @@ const DashboardPage = () => {
           .map(doc => doc.data())
           .filter(v => (v.año === Number(selectedYear)) || (new Date(v.fecha).getFullYear() === Number(selectedYear)));
 
-        // --- CALCULATIONS ---
-        const harvestTotal = cosechasData.reduce((acc, c) => acc + (Number(c.kilos_total) || 0), 0);
-        
-        // Calculate total Kg from sales (sum of all categories)
-        const salesKgTotal = ventasData.reduce((acc, v) => acc + 
-          (Number(v.cat_exportacion?.kg || 0) + 
-           Number(v.cat_primera?.kg || 0) + 
-           Number(v.cat_segunda?.kg || 0) + 
-           Number(v.cat_rechazo?.kg || 0)), 0);
+        // 3. Real-time listener for Actividades
+        const qAct = query(
+          collection(db, 'actividades'), 
+          where('año', '==', Number(selectedYear))
+        );
 
-        // Production is the maximum of both (as a fallback for historical data)
-        const displayProduction = Math.max(harvestTotal, salesKgTotal);
+        const unsubscribeAct = onSnapshot(qAct, (actSnap) => {
+          const actData = actSnap.docs.map(doc => doc.data());
 
-        const salesTotal = ventasData.reduce((acc, v) => acc + (Number(v.total_venta) || 0), 0);
-        const collectedTotal = ventasData
-          .filter(v => v.estado_pago === 'Pagado')
-          .reduce((acc, v) => acc + (Number(v.total_venta) || 0), 0);
-        const pendingBalance = salesTotal - collectedTotal;
-        const pendingCount = ventasData.filter(v => v.estado_pago === 'Pendiente').length;
+          // --- CALCULATIONS ---
+          const harvestTotal = cosechasData.reduce((acc, c) => acc + (Number(c.kilos_total) || 0), 0);
+          const salesKgTotal = ventasData.reduce((acc, v) => acc + 
+            (Number(v.cat_exportacion?.kg || 0) + 
+             Number(v.cat_primera?.kg || 0) + 
+             Number(v.cat_segunda?.kg || 0) + 
+             Number(v.cat_rechazo?.kg || 0)), 0);
 
-        // Production Chart (by week)
-        const weeksMap = {};
-        // Add harvest data
-        cosechasData.forEach(c => {
-          const sem = c.semana || 'N/A';
-          weeksMap[sem] = (weeksMap[sem] || 0) + (Number(c.kilos_total) || 0);
-        });
-        
-        // Fallback: If a week has sales but no harvest data, use sales kg
-        ventasData.forEach(v => {
-          const sem = v.semana || 'N/A';
-          const vKg = (Number(v.cat_exportacion?.kg || 0) + 
-                      Number(v.cat_primera?.kg || 0) + 
-                      Number(v.cat_segunda?.kg || 0) + 
-                      Number(v.cat_rechazo?.kg || 0));
+          const displayProduction = Math.max(harvestTotal, salesKgTotal);
+          const salesTotal = ventasData.reduce((acc, v) => acc + (Number(v.total_venta) || 0), 0);
+          const collectedTotal = ventasData
+            .filter(v => v.estado_pago === 'Pagado')
+            .reduce((acc, v) => acc + (Number(v.total_venta) || 0), 0);
+          const pendingBalance = salesTotal - collectedTotal;
+          const pendingCount = ventasData.filter(v => v.estado_pago === 'Pendiente').length;
+          const laboresMes = actData.length;
+
+          // Production Chart (by week)
+          const weeksMap = {};
+          cosechasData.forEach(c => {
+            const sem = c.semana || 'N/A';
+            weeksMap[sem] = (weeksMap[sem] || 0) + (Number(c.kilos_total) || 0);
+          });
           
-          if (!weeksMap[sem] || weeksMap[sem] < vKg) {
-            weeksMap[sem] = vKg;
-          }
+          ventasData.forEach(v => {
+            const sem = v.semana || 'N/A';
+            const vKg = (Number(v.cat_exportacion?.kg || 0) + 
+                        Number(v.cat_primera?.kg || 0) + 
+                        Number(v.cat_segunda?.kg || 0) + 
+                        Number(v.cat_rechazo?.kg || 0));
+            if (!weeksMap[sem] || weeksMap[sem] < vKg) weeksMap[sem] = vKg;
+          });
+
+          const productionChart = Object.keys(weeksMap)
+            .sort()
+            .slice(-12)
+            .map(sem => ({ name: sem, kilos: weeksMap[sem] }));
+
+          // Quality Chart
+          const quality = {
+            exportacion: ventasData.reduce((acc, v) => acc + (Number(v.cat_exportacion?.kg) || 0), 0),
+            primera: ventasData.reduce((acc, v) => acc + (Number(v.cat_primera?.kg) || 0), 0),
+            segunda: ventasData.reduce((acc, v) => acc + (Number(v.cat_segunda?.kg) || 0), 0),
+            rechazo: ventasData.reduce((acc, v) => acc + (Number(v.cat_rechazo?.kg) || 0), 0),
+          };
+
+          const qualityChart = [
+            { name: 'Exportación', value: quality.exportacion, color: '#2563EB' },
+            { name: 'Primera', value: quality.primera, color: '#6DC010' },
+            { name: 'Segunda', value: quality.segunda, color: '#F47920' },
+            { name: 'Rechazo', value: quality.rechazo, color: '#DC2626' },
+          ].filter(q => q.value > 0);
+
+          setStats({
+            cosechaTotal: displayProduction,
+            ventasTotal: salesTotal,
+            collectedTotal,
+            pendingBalance,
+            pendientesCount: pendingCount,
+            laboresMes,
+            productionChart,
+            qualityChart,
+            cosechas: cosechasData,
+            ventas: ventasData,
+            actividades: actData
+          });
+          
+          setLoading(false);
         });
 
-        const productionChart = Object.keys(weeksMap)
-          .sort()
-          .slice(-12)
-          .map(sem => ({ name: sem, kilos: weeksMap[sem] }));
-
-        // Quality Chart
-        const quality = {
-          exportacion: ventasData.reduce((acc, v) => acc + (Number(v.cat_exportacion?.kg) || 0), 0),
-          primera: ventasData.reduce((acc, v) => acc + (Number(v.cat_primera?.kg) || 0), 0),
-          segunda: ventasData.reduce((acc, v) => acc + (Number(v.cat_segunda?.kg) || 0), 0),
-          rechazo: ventasData.reduce((acc, v) => acc + (Number(v.cat_rechazo?.kg) || 0), 0),
-        };
-
-        const qualityChart = [
-          { name: 'Exportación', value: quality.exportacion, color: '#2563EB' },
-          { name: 'Primera', value: quality.primera, color: '#6DC010' },
-          { name: 'Segunda', value: quality.segunda, color: '#F47920' },
-          { name: 'Rechazo', value: quality.rechazo, color: '#DC2626' },
-        ].filter(q => q.value > 0);
-
-        setStats({
-          cosechaTotal: displayProduction,
-          ventasTotal: salesTotal,
-          collectedTotal: collectedTotal,
-          pendingBalance: pendingBalance,
-          pendientesCount: pendingCount,
-          productionChart,
-          qualityChart,
-          cosechas: cosechasData,
-          ventas: ventasData
-        });
-        
-        setLoading(false);
+        return () => unsubscribeAct();
       });
 
       return () => unsubscribeVentas();
@@ -148,7 +156,7 @@ const DashboardPage = () => {
           </div>
           <div>
             <h2 className="text-2xl font-black text-gray-900">Análisis de Gestión {selectedYear}</h2>
-            <p className="text-gray-500 text-sm font-medium">Información enlazada y fiable de producción y finanzas</p>
+            <p className="text-gray-500 text-sm font-medium">Información enlazada de producción, finanzas y labores</p>
           </div>
         </div>
         
@@ -173,12 +181,13 @@ const DashboardPage = () => {
       {/* Tarjetas KPI */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KPICard 
-          title="Ventas Totales" 
-          value={formatCOP(stats.ventasTotal)} 
-          subtitle="Total Facturado" 
-          icon={<ShoppingCart className="text-primary" />} 
-          trend={`${stats.ventas.length} ventas`} 
-          color="primary"
+          title="Cartera Pendiente" 
+          value={formatCOP(stats.pendingBalance)} 
+          subtitle="Saldo por Cobrar" 
+          icon={<DollarSign className="text-orange-500" />} 
+          trend={`${stats.pendientesCount} facturas`} 
+          color="orange"
+          isWarning={stats.pendingBalance > 0}
         />
         <KPICard 
           title="Total Recaudado" 
@@ -189,15 +198,6 @@ const DashboardPage = () => {
           color="green"
         />
         <KPICard 
-          title="Cartera Pendiente" 
-          value={formatCOP(stats.pendingBalance)} 
-          subtitle="Saldo por Cobrar" 
-          icon={<DollarSign className="text-orange-500" />} 
-          trend={`${stats.pendientesCount} facturas`} 
-          color="orange"
-          isWarning={stats.pendingBalance > 0}
-        />
-        <KPICard 
           title="Producción" 
           value={formatKg(stats.cosechaTotal)} 
           subtitle="Kilos Cosechados" 
@@ -205,87 +205,135 @@ const DashboardPage = () => {
           trend="Inventario" 
           color="blue"
         />
+        <KPICard 
+          title="Labores Realizadas" 
+          value={stats.laboresMes} 
+          subtitle="Mantenimiento Lotes" 
+          icon={<Activity className="text-primary" />} 
+          trend="Actividades" 
+          color="primary"
+        />
       </div>
 
-      {/* Gráficas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="card h-[400px]">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-gray-800">Volumen de Cosecha por Semana</h3>
-            <span className="text-xs font-bold text-primary uppercase bg-primary-light px-2 py-1 rounded">Kg Producidos</span>
-          </div>
-          {stats.productionChart.length > 0 ? (
-            <ResponsiveContainer width="100%" height="90%">
-              <AreaChart data={stats.productionChart}>
-                <defs>
-                  <linearGradient id="colorKilos" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6DC010" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#6DC010" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 10}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 10}} />
-                <Tooltip 
-                  contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
-                  itemStyle={{fontWeight: 'bold'}}
-                />
-                <Area type="monotone" dataKey="kilos" stroke="#6DC010" strokeWidth={3} fillOpacity={1} fill="url(#colorKilos)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-gray-300 italic">
-              <Leaf size={48} className="opacity-10 mb-2" />
-              <p>Sin datos de producción para {selectedYear}</p>
+      {/* Gráficas y Timeline */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <div className="card h-[400px]">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-gray-800">Volumen de Cosecha por Semana</h3>
+              <span className="text-xs font-bold text-primary uppercase bg-primary-light px-2 py-1 rounded">Kg Producidos</span>
             </div>
-          )}
-        </div>
-
-        <div className="card h-[400px]">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-gray-800">Balance de Calidad Anual</h3>
-            <span className="text-xs font-bold text-secondary uppercase bg-secondary-light px-2 py-1 rounded">Distribución Kg</span>
-          </div>
-          {stats.qualityChart.length > 0 ? (
-            <div className="flex flex-col md:flex-row h-full items-center">
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={stats.qualityChart}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {stats.qualityChart.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
+            {stats.productionChart.length > 0 ? (
+              <ResponsiveContainer width="100%" height="90%">
+                <AreaChart data={stats.productionChart}>
+                  <defs>
+                    <linearGradient id="colorKilos" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6DC010" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#6DC010" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 10}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 10}} />
+                  <Tooltip 
+                    contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                    itemStyle={{fontWeight: 'bold'}}
+                  />
+                  <Area type="monotone" dataKey="kilos" stroke="#6DC010" strokeWidth={3} fillOpacity={1} fill="url(#colorKilos)" />
+                </AreaChart>
               </ResponsiveContainer>
-              <div className="w-full md:w-auto flex flex-col justify-center gap-3 mt-4 md:mt-0 md:pr-8">
-                {stats.qualityChart.map((item) => (
-                  <div key={item.name} className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full" style={{backgroundColor: item.color}}></div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] text-gray-400 font-black uppercase tracking-wider">{item.name}</span>
-                      <span className="font-extrabold text-gray-900 text-sm">{formatKg(item.value)}</span>
-                    </div>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-gray-300 italic">
+                <Leaf size={48} className="opacity-10 mb-2" />
+                <p>Sin datos de producción para {selectedYear}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="card h-[350px]">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-gray-800">Calidad Anual</h3>
+                <span className="text-xs font-bold text-secondary uppercase bg-secondary-light px-2 py-1 rounded">Distribución Kg</span>
+              </div>
+              {stats.qualityChart.length > 0 ? (
+                <div className="flex flex-col items-center">
+                  <ResponsiveContainer width="100%" height={180}>
+                    <PieChart>
+                      <Pie data={stats.qualityChart} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value">
+                        {stats.qualityChart.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="grid grid-cols-2 gap-2 mt-4 w-full">
+                    {stats.qualityChart.map((item) => (
+                      <div key={item.name} className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{backgroundColor: item.color}}></div>
+                        <span className="text-[10px] text-gray-500 font-bold uppercase truncate">{item.name}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-300 italic text-sm">Sin liquidaciones</div>
+              )}
+            </div>
+
+            <div className="card h-[350px] overflow-hidden">
+              <h3 className="font-bold text-gray-800 mb-6">Inversión en Labores</h3>
+              <div className="flex flex-col items-center justify-center h-full text-gray-300 italic">
+                <Activity size={48} className="opacity-10 mb-2" />
+                <p className="text-sm">Gráfica de costos en desarrollo</p>
               </div>
             </div>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-gray-300 italic">
-              <DollarSign size={48} className="opacity-10 mb-2" />
-              <p>Sin liquidaciones en {selectedYear}</p>
-            </div>
-          )}
+          </div>
+        </div>
+
+        {/* Timeline Lateral */}
+        <div className="card h-full max-h-[800px] overflow-hidden flex flex-col bg-gray-50/50">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-black text-gray-900 flex items-center gap-2">
+              <History size={20} className="text-primary" />
+              Línea de Tiempo
+            </h3>
+            <span className="text-[10px] font-black bg-white px-2 py-1 rounded border border-gray-100 uppercase">Reciente</span>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto pr-2 space-y-6">
+            {[...stats.cosechas.map(c => ({...c, type: 'harvest'})), ...stats.actividades.map(a => ({...a, type: 'labor'}))]
+              .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+              .slice(0, 10)
+              .map((item, idx) => (
+                <div key={idx} className="relative pl-6 border-l-2 border-gray-100">
+                  <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 border-white shadow-sm ${
+                    item.type === 'harvest' ? 'bg-secondary' : 'bg-primary'
+                  }`}></div>
+                  <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 group hover:border-primary/20 transition-all cursor-default">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-tight">{item.fecha}</span>
+                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${
+                        item.type === 'harvest' ? 'bg-secondary-light text-secondary' : 'bg-primary-light text-primary'
+                      }`}>
+                        {item.type === 'harvest' ? 'Cosecha' : item.tipo}
+                      </span>
+                    </div>
+                    <p className="text-xs font-bold text-gray-800">{item.lote_nombre}</p>
+                    <p className="text-[10px] text-gray-500 mt-1 line-clamp-2">
+                      {item.type === 'harvest' ? `Recolección de ${formatKg(item.kilos_total)}` : item.observaciones}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            {stats.cosechas.length === 0 && stats.actividades.length === 0 && (
+              <div className="h-full flex items-center justify-center text-gray-300 italic text-sm">No hay actividad registrada</div>
+            )}
+          </div>
         </div>
       </div>
+    </div>
+  );
+};
     </div>
   );
 };
