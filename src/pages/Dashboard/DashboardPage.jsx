@@ -4,7 +4,8 @@ import {
   PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
 import { 
-  Leaf, DollarSign, Users, Truck, AlertTriangle, Calendar, TrendingUp, ArrowUpRight, Filter, Loader2, ShoppingCart, CheckCircle
+  Leaf, DollarSign, Users, Truck, AlertTriangle, Calendar, TrendingUp, 
+  ArrowUpRight, Filter, Loader2, ShoppingCart, CheckCircle, Activity, History
 } from 'lucide-react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/config';
