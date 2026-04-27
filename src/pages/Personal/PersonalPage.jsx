@@ -397,18 +397,37 @@ const PersonalPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {/* ... (resto del código de liquidaciones se mantiene igual) */}
+                  {[1, 2, 3].map(i => (
+                    <tr key={i} className="hover:bg-gray-50 transition-colors">
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-gray-200 rounded-lg"></div>
+                          <div>
+                            <p className="font-bold text-gray-900 text-sm">Ejemplo Trabajador {i}</p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase">C.C. 12345678</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4"><span className="text-xs font-bold text-gray-500">Jornalero</span></td>
+                      <td className="p-4 font-bold text-sm text-gray-800">{formatCOP(750000)}</td>
+                      <td className="p-4 font-bold text-sm text-red-500">{formatCOP(50000)}</td>
+                      <td className="p-4 font-black text-sm text-gray-900">{formatCOP(700000)}</td>
+                      <td className="p-4">
+                        <span className="px-2 py-1 bg-orange-100 text-orange-600 rounded text-[10px] font-black uppercase">Pendiente</span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex gap-2 justify-end">
+                          <button className="p-2 bg-primary-light text-primary rounded-lg hover:bg-primary hover:text-white transition-all"><Download size={16}/></button>
+                          <button className="p-2 bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200 transition-all"><MoreVertical size={16}/></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </div>
         </div>
-      )}
-    </div>
-  );
-};
-
-export default PersonalPage;
       )}
     </div>
   );
