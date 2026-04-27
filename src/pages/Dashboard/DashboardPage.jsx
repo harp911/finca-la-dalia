@@ -334,9 +334,6 @@ const DashboardPage = () => {
     </div>
   );
 };
-    </div>
-  );
-};
 
 const KPICard = ({ title, value, subtitle, icon, trend, color, isWarning }) => (
   <div className="card group hover:scale-[1.02] transition-all duration-300 border-none shadow-sm">
