@@ -8,6 +8,14 @@ const PersonalPage = () => {
   const [activeTab, setActiveTab] = useState('trabajadores');
   const [trabajadores, setTrabajadores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    nombre: '',
+    cedula: '',
+    cargo: 'Jornalero',
+    valor_jornal: '',
+    estado: 'activo'
+  });
 
   useEffect(() => {
     fetchTrabajadores();
@@ -25,6 +33,21 @@ const PersonalPage = () => {
     }
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await addDoc(collection(db, 'trabajadores'), {
+        ...formData,
+        fecha_registro: new Date().toISOString()
+      });
+      setIsModalOpen(false);
+      setFormData({ nombre: '', cedula: '', cargo: 'Jornalero', valor_jornal: '', estado: 'activo' });
+      fetchTrabajadores();
+    } catch (error) {
+      console.error("Error adding worker:", error);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -36,7 +59,10 @@ const PersonalPage = () => {
           <p className="text-gray-500 font-medium">Administra trabajadores, jornales y liquidaciones quincenales</p>
         </div>
         <div className="flex gap-3">
-          <button className="btn-primary flex items-center gap-2 shadow-lg shadow-primary/20">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="btn-primary flex items-center gap-2 shadow-lg shadow-primary/20"
+          >
             <UserPlus size={20} />
             Nuevo Trabajador
           </button>
@@ -102,6 +128,83 @@ const PersonalPage = () => {
         </div>
       )}
 
+      {/* Modal CRUD Trabajadores */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-[2rem] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in duration-200">
+            <h3 className="text-2xl font-black text-gray-900 mb-6 flex items-center gap-3">
+              <div className="p-2 bg-primary-light text-primary rounded-xl"><UserPlus size={20}/></div>
+              Registrar Nuevo Trabajador
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Nombre Completo</label>
+                  <input 
+                    className="input-field" 
+                    value={formData.nombre}
+                    onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                    placeholder="Ej: Juan Pérez"
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Cédula / ID</label>
+                  <input 
+                    className="input-field" 
+                    value={formData.cedula}
+                    onChange={(e) => setFormData({...formData, cedula: e.target.value})}
+                    placeholder="12345678"
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Cargo</label>
+                  <select 
+                    className="input-field"
+                    value={formData.cargo}
+                    onChange={(e) => setFormData({...formData, cargo: e.target.value})}
+                  >
+                    <option value="Administrador">Administrador</option>
+                    <option value="Mayordomo">Mayordomo</option>
+                    <option value="Jornalero">Jornalero</option>
+                    <option value="Cosechador">Cosechador</option>
+                    <option value="Conductor">Conductor</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Valor Jornal / Mes</label>
+                  <input 
+                    type="number"
+                    className="input-field" 
+                    value={formData.valor_jornal}
+                    onChange={(e) => setFormData({...formData, valor_jornal: e.target.value})}
+                    placeholder="50000"
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Estado</label>
+                  <select 
+                    className="input-field"
+                    value={formData.estado}
+                    onChange={(e) => setFormData({...formData, estado: e.target.value})}
+                  >
+                    <option value="activo">Activo</option>
+                    <option value="inactivo">Inactivo</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 px-4 rounded-xl border border-gray-200 font-bold text-gray-500 hover:bg-gray-50 transition-colors">Cancelar</button>
+                <button type="submit" className="flex-1 btn-primary py-3 px-4 shadow-lg shadow-primary/20">Guardar Trabajador</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Sección de Liquidaciones */}
       {activeTab === 'liquidaciones' && (
         <div className="space-y-6">
           <div className="card p-8 bg-gray-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-6 border-none shadow-xl">
