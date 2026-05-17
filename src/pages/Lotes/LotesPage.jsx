@@ -226,6 +226,7 @@ const LotesPage = () => {
 const ActividadesSection = ({ lotes, trabajadores, onRefresh }) => {
   const [actividades, setActividades] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingActividadId, setEditingActividadId] = useState(null);
   const [formData, setFormData] = useState({
     fecha: new Date().toISOString().split('T')[0],
     tipo: 'Poda',
@@ -251,23 +252,78 @@ const ActividadesSection = ({ lotes, trabajadores, onRefresh }) => {
     e.preventDefault();
     const lote = lotes.find(l => l.id === formData.lote_id);
     const trabajador = trabajadores.find(t => t.id === formData.trabajador_id);
-    await addDoc(collection(db, 'actividades'), {
+    const dataToSave = {
       ...formData,
       lote_nombre: lote?.nombre || 'Desconocido',
       trabajador_nombre: trabajador?.nombre || 'General',
       año: new Date(formData.fecha).getFullYear(),
-      semana: getWeekNumber(formData.fecha),
-      timestamp: new Date().toISOString()
+      semana: getWeekNumber(formData.fecha)
+    };
+
+    if (editingActividadId) {
+      await updateDoc(doc(db, 'actividades', editingActividadId), dataToSave);
+      setEditingActividadId(null);
+    } else {
+      await addDoc(collection(db, 'actividades'), {
+        ...dataToSave,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    setFormData({
+      fecha: new Date().toISOString().split('T')[0],
+      tipo: 'Poda',
+      lote_id: '',
+      trabajador_id: '',
+      horas: '',
+      observaciones: ''
     });
     setShowForm(false);
     fetchActividades();
+  };
+
+  const handleEdit = (act) => {
+    setEditingActividadId(act.id);
+    setFormData({
+      fecha: act.fecha,
+      tipo: act.tipo,
+      lote_id: act.lote_id,
+      trabajador_id: act.trabajador_id || '',
+      horas: act.horas || '',
+      observaciones: act.observaciones || ''
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('¿Estás seguro de eliminar este registro de labor?')) {
+      try {
+        await deleteDoc(doc(db, 'actividades', id));
+        fetchActividades();
+      } catch (error) {
+        console.error("Error deleting actividad:", error);
+      }
+    }
   };
 
   return (
     <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-bold text-gray-900">Registro de Labores</h3>
-        <button onClick={() => setShowForm(!showForm)} className="px-4 py-2 bg-primary/10 text-primary font-bold rounded-xl flex items-center gap-2">
+        <button onClick={() => {
+            setShowForm(!showForm);
+            if(showForm) {
+                setEditingActividadId(null);
+                setFormData({
+                    fecha: new Date().toISOString().split('T')[0],
+                    tipo: 'Poda',
+                    lote_id: '',
+                    trabajador_id: '',
+                    horas: '',
+                    observaciones: ''
+                });
+            }
+        }} className="px-4 py-2 bg-primary/10 text-primary font-bold rounded-xl flex items-center gap-2 hover:bg-primary/20 transition-all">
           {showForm ? 'Cerrar' : <><Plus size={18}/> Registrar Labor</>}
         </button>
       </div>
@@ -300,7 +356,7 @@ const ActividadesSection = ({ lotes, trabajadores, onRefresh }) => {
           <div className="md:col-span-3">
             <input className="input-field bg-white" placeholder="Observaciones..." value={formData.observaciones} onChange={e => setFormData({...formData, observaciones: e.target.value})} />
           </div>
-          <button type="submit" className="btn-primary py-3">Guardar</button>
+          <button type="submit" className="btn-primary py-3">{editingActividadId ? 'Actualizar' : 'Guardar'}</button>
         </form>
       )}
       <div className="card overflow-hidden">
@@ -311,15 +367,22 @@ const ActividadesSection = ({ lotes, trabajadores, onRefresh }) => {
               <th className="p-4">Lote</th>
               <th className="p-4">Labor</th>
               <th className="p-4">Responsable</th>
+              <th className="p-4 text-right">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {actividades.map(act => (
-              <tr key={act.id} className="hover:bg-gray-50">
+              <tr key={act.id} className="hover:bg-gray-50 group transition-colors">
                 <td className="p-4 text-sm text-gray-500">{act.fecha}</td>
                 <td className="p-4 font-bold">{act.lote_nombre}</td>
                 <td className="p-4"><span className="px-2 py-1 bg-primary/5 text-primary rounded-lg text-[10px] font-black uppercase">{act.tipo}</span></td>
                 <td className="p-4 text-sm text-gray-600">{act.trabajador_nombre}</td>
+                <td className="p-4 text-right">
+                  <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => handleEdit(act)} className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary-light rounded-lg transition-all"><Edit2 size={16} /></button>
+                    <button onClick={() => handleDelete(act.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={16} /></button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
