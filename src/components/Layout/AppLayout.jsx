@@ -12,14 +12,18 @@ import {
   LogOut, 
   ChevronLeft, 
   ChevronRight,
-  Bell
+  Bell,
+  Info,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { auth } from '../../firebase/config';
 import { signOut } from 'firebase/auth';
+import { CURRENT_VERSION, VERSION_HISTORY } from '../../utils/versions';
 
 const AppLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const { userData, isAdmin } = useAuth();
   const navigate = useNavigate();
 
@@ -79,13 +83,21 @@ const AppLayout = () => {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-gray-100">
+        <div className="p-4 border-t border-gray-100 space-y-2">
           <button 
             onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all w-full"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all w-full text-left"
           >
             <LogOut size={22} />
-            {!isCollapsed && <span>Cerrar Sesión</span>}
+            {!isCollapsed && <span className="font-semibold">Cerrar Sesión</span>}
+          </button>
+          
+          <button
+            onClick={() => setIsChangelogOpen(true)}
+            className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-all w-full text-xs font-bold border border-gray-100/60"
+          >
+            <Info size={14} />
+            {!isCollapsed && <span>Versión {CURRENT_VERSION}</span>}
           </button>
         </div>
       </aside>
@@ -117,6 +129,81 @@ const AppLayout = () => {
           <Outlet />
         </div>
       </main>
+      {/* Modal de Versiones */}
+      {isChangelogOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] w-full max-w-2xl p-8 shadow-2xl animate-in zoom-in duration-200 flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-primary-light text-primary rounded-2xl">
+                  <Sparkles size={22} className="animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-gray-900 leading-none">Historial de Actualizaciones</h3>
+                  <p className="text-gray-400 text-xs mt-1 font-semibold">Registro de versiones y mejoras de Optifrutas</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsChangelogOpen(false)}
+                className="text-sm font-bold text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-xl transition-all"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-2 space-y-8 scrollbar-thin">
+              {VERSION_HISTORY.map((v, idx) => (
+                <div key={v.version} className="relative pl-8 border-l border-gray-100 last:border-l-0">
+                  {/* Dot */}
+                  <div className={`absolute -left-[9px] top-1.5 w-4.5 h-4.5 rounded-full border-4 border-white shadow-sm flex items-center justify-center ${
+                    idx === 0 ? 'bg-primary animate-ping' : 'bg-gray-300'
+                  }`}></div>
+                  {/* Active Dot */}
+                  {idx === 0 && (
+                    <div className="absolute -left-[9px] top-1.5 w-4.5 h-4.5 rounded-full border-4 border-white shadow-sm bg-primary"></div>
+                  )}
+
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase ${
+                        idx === 0 ? 'bg-primary-light text-primary' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        v{v.version}
+                      </span>
+                      <span className="text-gray-400 text-xs font-bold">{v.date}</span>
+                      {idx === 0 && (
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-black uppercase tracking-wider">
+                          Versión Activa
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-base font-extrabold text-gray-900">{v.title}</h4>
+                    <p className="text-sm text-gray-500 font-medium leading-relaxed">{v.description}</p>
+                    
+                    {v.changes && v.changes.length > 0 && (
+                      <ul className="mt-3 bg-gray-50 rounded-2xl p-4 space-y-2 border border-gray-100/50">
+                        {v.changes.map((change, cIdx) => (
+                          <li key={cIdx} className="text-xs text-gray-600 flex items-start gap-2 leading-relaxed">
+                            <span className="text-primary font-bold mt-0.5">•</span>
+                            <span className="font-semibold">{change}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="border-t border-gray-100 pt-4 mt-6 flex justify-between items-center text-xs text-gray-400">
+              <span className="font-semibold">Optifrutas © 2026</span>
+              <span className="font-bold bg-gray-50 px-3 py-1 rounded-full text-[10px] uppercase text-gray-500">
+                Finca La Dalia
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
