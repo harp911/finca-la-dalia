@@ -1,6 +1,20 @@
-export const CURRENT_VERSION = '1.8.0';
+export const CURRENT_VERSION = '1.9.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.9.0',
+    date: '17 de Mayo, 2026',
+    title: 'Dashboard de Lote Interactivo y Parametrizable',
+    description: 'Habilitada la interacción en el inventario para visualizar el detalle individual de cada lote, integrando un mini-dashboard analítico con un filtro de rango de tiempo parametrizable.',
+    type: 'feature',
+    changes: [
+      'Implementado modal interactivo de detalle de lote al hacer clic en cualquier recuadro del inventario de lotes.',
+      'Filtro de fecha parametrizable con presets (7, 30, 90 días, todos los registros) y selector de rango de fecha personalizado.',
+      'Mini-dashboard analítico con indicadores clave: total horas trabajadas, total labores realizadas y labor predominante en el periodo.',
+      'Gráfico de distribución del tiempo (breakdown) para ver el peso porcentual de cada labor realizada.',
+      'Listado cronológico detallado de actividades con scroll optimizado dentro del rango seleccionado.'
+    ]
+  },
   {
     version: '1.8.0',
     date: '17 de Mayo, 2026',

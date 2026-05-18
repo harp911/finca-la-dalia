@@ -25,6 +25,11 @@ const LotesPage = () => {
     observaciones: ''
   });
 
+  const [selectedLote, setSelectedLote] = useState(null);
+  const [dateRange, setDateRange] = useState('30');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -142,14 +147,18 @@ const LotesPage = () => {
             const totalHoras = loteActividades.reduce((sum, act) => sum + Number(act.horas || 0), 0);
 
             return (
-              <div key={lote.id} className="card group hover:border-primary/30 transition-all duration-300">
+              <div 
+                key={lote.id} 
+                onClick={() => setSelectedLote(lote)}
+                className="card group hover:border-primary/30 cursor-pointer hover:shadow-lg transition-all duration-300"
+              >
                 <div className="flex justify-between items-start mb-4">
                   <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${lote.estado === 'activo' ? 'bg-primary-light text-primary' : 'bg-gray-100 text-gray-500'}`}>
                     {lote.estado}
                   </div>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => { setEditingLote(lote); setFormData(lote); setIsModalOpen(true); }} className="p-2 text-gray-400 hover:text-primary transition-colors"><Edit2 size={18} /></button>
-                    <button onClick={() => handleDelete(lote.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); setEditingLote(lote); setFormData(lote); setIsModalOpen(true); }} className="p-2 text-gray-400 hover:text-primary transition-colors"><Edit2 size={18} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(lote.id); }} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
                   </div>
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-4">{lote.nombre}</h3>
@@ -182,7 +191,7 @@ const LotesPage = () => {
                       ))}
                       {loteActividades.length > 3 && (
                         <button 
-                          onClick={() => setActiveTab('actividades')} 
+                          onClick={(e) => { e.stopPropagation(); setActiveTab('actividades'); }} 
                           className="text-[10px] text-primary font-black block pt-1 hover:underline text-left"
                         >
                           + Ver {loteActividades.length - 3} labores más
@@ -258,6 +267,241 @@ const LotesPage = () => {
           </div>
         </div>
       )}
+
+      {/* Modal Detalle de Lote con Dashboard Parametrizable */}
+      {selectedLote && (() => {
+        const getFilteredLoteActividades = (loteId) => {
+          let filtered = actividades.filter(act => act.lote_id === loteId);
+          
+          const today = new Date();
+          let startDate = null;
+          
+          if (dateRange === '7') {
+            startDate = new Date();
+            startDate.setDate(today.getDate() - 7);
+          } else if (dateRange === '30') {
+            startDate = new Date();
+            startDate.setDate(today.getDate() - 30);
+          } else if (dateRange === '90') {
+            startDate = new Date();
+            startDate.setDate(today.getDate() - 90);
+          } else if (dateRange === 'custom') {
+            if (customStartDate) {
+              filtered = filtered.filter(act => new Date(act.fecha) >= new Date(customStartDate + 'T00:00:00'));
+            }
+            if (customEndDate) {
+              filtered = filtered.filter(act => new Date(act.fecha) <= new Date(customEndDate + 'T23:59:59'));
+            }
+            return filtered.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+          }
+          
+          if (startDate) {
+            startDate.setHours(0,0,0,0);
+            filtered = filtered.filter(act => new Date(act.fecha) >= startDate);
+          }
+          
+          return filtered.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        };
+
+        const filteredActs = getFilteredLoteActividades(selectedLote.id);
+        const totalHoras = filteredActs.reduce((sum, act) => sum + Number(act.horas || 0), 0);
+        const totalLabores = filteredActs.length;
+        
+        // Calcular porcentaje por labor
+        const breakdown = {};
+        filteredActs.forEach(act => {
+          breakdown[act.tipo] = (breakdown[act.tipo] || 0) + Number(act.horas || 0);
+        });
+        
+        const breakdownArray = Object.entries(breakdown)
+          .map(([tipo, horas]) => ({
+            tipo,
+            horas,
+            percentage: totalHoras > 0 ? Math.round((horas / totalHoras) * 100) : 0
+          }))
+          .sort((a, b) => b.horas - a.horas);
+          
+        const laborDominante = breakdownArray[0]?.tipo || 'Ninguna';
+        const horasDominante = breakdownArray[0]?.horas || 0;
+
+        return (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+            <div className="bg-white rounded-[2rem] w-full max-w-4xl p-8 shadow-2xl animate-in zoom-in duration-200 flex flex-col max-h-[90vh] overflow-hidden">
+              {/* Header */}
+              <div className="flex justify-between items-start border-b border-gray-100 pb-4 mb-6">
+                <div>
+                  <span className="text-[10px] font-black uppercase text-primary bg-primary-light px-3 py-1 rounded-full">
+                    Detalle del Lote
+                  </span>
+                  <h3 className="text-3xl font-black text-gray-900 mt-2 leading-none">{selectedLote.nombre}</h3>
+                  <p className="text-gray-400 text-xs mt-1 font-semibold">Resumen de productividad y labores agrícolas</p>
+                </div>
+                <button 
+                  onClick={() => setSelectedLote(null)}
+                  className="text-sm font-bold text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-xl transition-all"
+                >
+                  Cerrar
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto pr-2 space-y-6 scrollbar-thin">
+                {/* Filtro de Tiempo Parametrizable */}
+                <div className="bg-gray-50 p-6 rounded-[1.5rem] border border-gray-100/60 flex flex-wrap gap-4 items-end justify-between">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-gray-400 block">Periodo de Tiempo</label>
+                    <select 
+                      className="input-field bg-white w-52 py-2 px-3 border border-gray-200/80 rounded-xl"
+                      value={dateRange}
+                      onChange={e => setDateRange(e.target.value)}
+                    >
+                      <option value="7">Últimos 7 días</option>
+                      <option value="30">Últimos 30 días</option>
+                      <option value="90">Últimos 90 días</option>
+                      <option value="todos">Todos los registros</option>
+                      <option value="custom">Rango Personalizado</option>
+                    </select>
+                  </div>
+
+                  {dateRange === 'custom' && (
+                    <div className="flex gap-3 items-end animate-in fade-in slide-in-from-left-2 duration-200">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 block">Desde</label>
+                        <input 
+                          type="date" 
+                          className="input-field bg-white py-1.5 px-3 border border-gray-200/80 rounded-xl text-xs"
+                          value={customStartDate} 
+                          onChange={e => setCustomStartDate(e.target.value)} 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 block">Hasta</label>
+                        <input 
+                          type="date" 
+                          className="input-field bg-white py-1.5 px-3 border border-gray-200/80 rounded-xl text-xs"
+                          value={customEndDate} 
+                          onChange={e => setCustomEndDate(e.target.value)} 
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-right text-[11px] text-gray-400 font-bold">
+                    {totalLabores} labores encontradas en este rango.
+                  </div>
+                </div>
+
+                {/* Pequeño Dashboard */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-primary/5 border border-primary/10 p-5 rounded-2xl flex flex-col justify-between">
+                    <span className="text-[10px] font-black uppercase text-primary tracking-wider">Total Horas</span>
+                    <div className="flex items-baseline gap-1 mt-2">
+                      <span className="text-4xl font-black text-primary">{totalHoras}</span>
+                      <span className="text-sm font-extrabold text-primary/70">horas</span>
+                    </div>
+                    <span className="text-[10px] text-primary/60 font-semibold mt-1">Tiempo de labor acumulado</span>
+                  </div>
+
+                  <div className="bg-secondary/5 border border-secondary/10 p-5 rounded-2xl flex flex-col justify-between">
+                    <span className="text-[10px] font-black uppercase text-secondary tracking-wider">Acciones / Labores</span>
+                    <div className="flex items-baseline gap-1 mt-2">
+                      <span className="text-4xl font-black text-secondary">{totalLabores}</span>
+                      <span className="text-sm font-extrabold text-secondary/70">registros</span>
+                    </div>
+                    <span className="text-[10px] text-secondary/60 font-semibold mt-1">Intervenciones en el lote</span>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-100 p-5 rounded-2xl flex flex-col justify-between">
+                    <span className="text-[10px] font-black uppercase text-blue-500 tracking-wider">Labor Predominante</span>
+                    <div className="mt-2">
+                      <span className="text-xl font-black text-blue-900 block truncate">{laborDominante}</span>
+                      <span className="text-xs font-semibold text-blue-500">{horasDominante} hrs registradas</span>
+                    </div>
+                    <span className="text-[10px] text-blue-400 font-semibold mt-1">Mayor esfuerzo operativo</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* Distribución de Labores (Mini Bar Chart) */}
+                  <div className="lg:col-span-4 bg-gray-50 border border-gray-100 p-6 rounded-2xl space-y-4">
+                    <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Distribución del Tiempo</h4>
+                    {breakdownArray.length === 0 ? (
+                      <p className="text-xs text-gray-400 italic">No hay datos disponibles.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {breakdownArray.map(item => (
+                          <div key={item.tipo} className="space-y-1.5">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="font-bold text-gray-700">{item.tipo}</span>
+                              <span className="font-black text-primary">{item.horas}h ({item.percentage}%)</span>
+                            </div>
+                            <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                              <div 
+                                className="bg-primary h-full rounded-full transition-all duration-500" 
+                                style={{ width: `${item.percentage}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tabla de Actividades */}
+                  <div className="lg:col-span-8 bg-white border border-gray-100 rounded-2xl overflow-hidden flex flex-col">
+                    <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+                      <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Detalle Cronológico</h4>
+                    </div>
+                    <div className="flex-1 overflow-x-auto max-h-[300px] overflow-y-auto">
+                      {filteredActs.length === 0 ? (
+                        <div className="p-8 text-center text-xs text-gray-400 italic">
+                          No se registraron labores en el periodo seleccionado.
+                        </div>
+                      ) : (
+                        <table className="w-full text-left text-xs">
+                          <thead>
+                            <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase text-[9px] bg-gray-50/20">
+                              <th className="p-3">Fecha</th>
+                              <th className="p-3">Labor</th>
+                              <th className="p-3">Responsable</th>
+                              <th className="p-3 text-center">Horas</th>
+                              <th className="p-3">Observaciones</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50 text-gray-600">
+                            {filteredActs.map(act => (
+                              <tr key={act.id} className="hover:bg-gray-50/50">
+                                <td className="p-3 font-semibold text-gray-500 whitespace-nowrap">{act.fecha}</td>
+                                <td className="p-3 font-bold text-gray-900">
+                                  <span className="px-2 py-0.5 bg-primary-light text-primary rounded-md text-[10px] font-black uppercase">
+                                    {act.tipo}
+                                  </span>
+                                </td>
+                                <td className="p-3 whitespace-nowrap">{act.trabajador_nombre}</td>
+                                <td className="p-3 text-center font-black text-primary">{act.horas}h</td>
+                                <td className="p-3 max-w-[200px] truncate" title={act.observaciones || ''}>
+                                  {act.observaciones || <span className="text-gray-300 italic">Sin observaciones</span>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="border-t border-gray-100 pt-4 mt-6 flex justify-between items-center text-xs text-gray-400">
+                <span className="font-semibold">Optifrutas © 2026</span>
+                <span className="font-bold bg-gray-50 px-3 py-1 rounded-full text-[10px] uppercase text-gray-500">
+                  Finca La Dalia
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
