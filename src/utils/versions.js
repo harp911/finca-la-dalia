@@ -1,6 +1,17 @@
-export const CURRENT_VERSION = '1.7.0';
+export const CURRENT_VERSION = '1.8.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.8.0',
+    date: '17 de Mayo, 2026',
+    title: 'Cosecha como Labor Oficial',
+    description: 'Integrada la "Cosecha" dentro del listado oficial de labores seleccionables del módulo de registro de labores de lotes.',
+    type: 'feature',
+    changes: [
+      'Añadida la opción "Cosecha" en la lista de tipos de labores del formulario dinámico de registro de labores.',
+      'Habilitado el guardado e histórico de labores del tipo Cosecha, permitiendo unificar labores agrícolas bajo el mismo esquema de horas y responsable.'
+    ]
+  },
   {
     version: '1.7.0',
     date: '17 de Mayo, 2026',

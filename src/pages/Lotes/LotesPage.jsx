@@ -274,7 +274,7 @@ const ActividadesSection = ({ lotes, trabajadores, actividades, onRefresh }) => 
     ]
   });
 
-  const tipos = ['Poda', 'Fumigación', 'Fertilización', 'Guadaña', 'Plateo', 'Mantenimiento', 'Otro'];
+  const tipos = ['Poda', 'Fumigación', 'Fertilización', 'Guadaña', 'Plateo', 'Mantenimiento', 'Cosecha', 'Otro'];
 
   const handleAddLaborRow = () => {
     if (formData.labores.length < 3) {
