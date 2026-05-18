@@ -1,6 +1,18 @@
-export const CURRENT_VERSION = '1.6.0';
+export const CURRENT_VERSION = '1.7.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.7.0',
+    date: '17 de Mayo, 2026',
+    title: 'Registro de Múltiples Labores e Integración de Inventario',
+    description: 'Habilitada la capacidad de registrar hasta tres labores diferentes por día con asignación de horas individualizadas, y visualización directa de labores registradas en la sección de Inventario de Lotes.',
+    type: 'feature',
+    changes: [
+      'Implementado formulario dinámico multitarea en el Registro de Labores, permitiendo adicionar hasta 3 labores por fecha/responsable.',
+      'Añadida la asignación y visualización del tiempo de trabajo en horas para cada labor registrada.',
+      'Sincronización en tiempo real con el Inventario de Lotes: cada tarjeta de lote ahora refleja su historial de labores recientes y total de horas acumuladas.'
+    ]
+  },
   {
     version: '1.6.0',
     date: '17 de Mayo, 2026',

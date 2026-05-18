@@ -12,6 +12,7 @@ const LotesPage = () => {
   const [activeTab, setActiveTab] = useState('lotes');
   const [lotes, setLotes] = useState([]);
   const [trabajadores, setTrabajadores] = useState([]);
+  const [actividades, setActividades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLote, setEditingLote] = useState(null);
@@ -38,6 +39,10 @@ const LotesPage = () => {
       const qTrabajadores = query(collection(db, 'trabajadores'), orderBy('nombre'));
       const trabajadoresSnap = await getDocs(qTrabajadores);
       setTrabajadores(trabajadoresSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+      const qActividades = query(collection(db, 'actividades'), orderBy('fecha', 'desc'));
+      const actividadesSnap = await getDocs(qActividades);
+      setActividades(actividadesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -132,41 +137,75 @@ const LotesPage = () => {
 
       {activeTab === 'lotes' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-300">
-          {lotes.map((lote) => (
-            <div key={lote.id} className="card group hover:border-primary/30 transition-all duration-300">
-              <div className="flex justify-between items-start mb-4">
-                <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${lote.estado === 'activo' ? 'bg-primary-light text-primary' : 'bg-gray-100 text-gray-500'}`}>
-                  {lote.estado}
+          {lotes.map((lote) => {
+            const loteActividades = actividades.filter(act => act.lote_id === lote.id);
+            const totalHoras = loteActividades.reduce((sum, act) => sum + Number(act.horas || 0), 0);
+
+            return (
+              <div key={lote.id} className="card group hover:border-primary/30 transition-all duration-300">
+                <div className="flex justify-between items-start mb-4">
+                  <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${lote.estado === 'activo' ? 'bg-primary-light text-primary' : 'bg-gray-100 text-gray-500'}`}>
+                    {lote.estado}
+                  </div>
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => { setEditingLote(lote); setFormData(lote); setIsModalOpen(true); }} className="p-2 text-gray-400 hover:text-primary transition-colors"><Edit2 size={18} /></button>
+                    <button onClick={() => handleDelete(lote.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                  </div>
                 </div>
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => { setEditingLote(lote); setFormData(lote); setIsModalOpen(true); }} className="p-2 text-gray-400 hover:text-primary transition-colors"><Edit2 size={18} /></button>
-                  <button onClick={() => handleDelete(lote.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">{lote.nombre}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-xl border border-gray-100">
+                    <Maximize size={16} className="text-primary" />
+                    <span className="text-sm font-bold">{lote.area_ha} ha</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-xl border border-gray-100">
+                    <TreeDeciduous size={16} className="text-primary" />
+                    <span className="text-sm font-bold">{lote.numero_arboles} árb.</span>
+                  </div>
                 </div>
+
+                {/* Historial de Labores de este Lote */}
+                <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Historial de Labores</span>
+                    <span className="text-[10px] font-black bg-primary-light text-primary px-2 py-0.5 rounded-full">{totalHoras} hrs</span>
+                  </div>
+                  {loteActividades.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic">Sin labores registradas</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {loteActividades.slice(0, 3).map(act => (
+                        <div key={act.id} className="flex justify-between items-center text-xs bg-gray-50/50 p-2 rounded-xl border border-gray-100/50">
+                          <span className="font-semibold text-gray-700">{act.tipo} ({act.horas}h)</span>
+                          <span className="text-gray-400 font-medium text-[10px]">{act.fecha}</span>
+                        </div>
+                      ))}
+                      {loteActividades.length > 3 && (
+                        <button 
+                          onClick={() => setActiveTab('actividades')} 
+                          className="text-[10px] text-primary font-black block pt-1 hover:underline text-left"
+                        >
+                          + Ver {loteActividades.length - 3} labores más
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {lote.observaciones && (
+                  <div className="mt-4 pt-4 border-t border-gray-50 flex items-start gap-2 text-gray-500 italic text-[11px]">
+                    <Info size={14} className="mt-0.5 shrink-0 text-primary/40" />
+                    <p>{lote.observaciones}</p>
+                  </div>
+                )}
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-4">{lote.nombre}</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-xl border border-gray-100">
-                  <Maximize size={16} className="text-primary" />
-                  <span className="text-sm font-bold">{lote.area_ha} ha</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-xl border border-gray-100">
-                  <TreeDeciduous size={16} className="text-primary" />
-                  <span className="text-sm font-bold">{lote.numero_arboles} árb.</span>
-                </div>
-              </div>
-              {lote.observaciones && (
-                <div className="mt-4 pt-4 border-t border-gray-50 flex items-start gap-2 text-gray-500 italic text-[11px]">
-                  <Info size={14} className="mt-0.5 shrink-0 text-primary/40" />
-                  <p>{lote.observaciones}</p>
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {activeTab === 'actividades' && (
-        <ActividadesSection lotes={lotes} trabajadores={trabajadores} onRefresh={fetchData} />
+        <ActividadesSection lotes={lotes} trabajadores={trabajadores} actividades={actividades} onRefresh={fetchData} />
       )}
 
       {activeTab === 'historial' && (
@@ -223,74 +262,117 @@ const LotesPage = () => {
   );
 };
 
-const ActividadesSection = ({ lotes, trabajadores, onRefresh }) => {
-  const [actividades, setActividades] = useState([]);
+const ActividadesSection = ({ lotes, trabajadores, actividades, onRefresh }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingActividadId, setEditingActividadId] = useState(null);
   const [formData, setFormData] = useState({
     fecha: new Date().toISOString().split('T')[0],
-    tipo: 'Poda',
     lote_id: '',
     trabajador_id: '',
-    horas: '',
-    observaciones: ''
+    labores: [
+      { tipo: 'Poda', horas: '', observaciones: '' }
+    ]
   });
 
   const tipos = ['Poda', 'Fumigación', 'Fertilización', 'Guadaña', 'Plateo', 'Mantenimiento', 'Otro'];
 
-  useEffect(() => {
-    fetchActividades();
-  }, []);
+  const handleAddLaborRow = () => {
+    if (formData.labores.length < 3) {
+      setFormData({
+        ...formData,
+        labores: [...formData.labores, { tipo: 'Poda', horas: '', observaciones: '' }]
+      });
+    }
+  };
 
-  const fetchActividades = async () => {
-    const q = query(collection(db, 'actividades'), orderBy('fecha', 'desc'));
-    const snap = await getDocs(q);
-    setActividades(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  const handleRemoveLaborRow = (index) => {
+    setFormData({
+      ...formData,
+      labores: formData.labores.filter((_, i) => i !== index)
+    });
+  };
+
+  const handleLaborFieldChange = (index, field, value) => {
+    const updatedLabores = formData.labores.map((labor, i) => {
+      if (i === index) {
+        return { ...labor, [field]: value };
+      }
+      return labor;
+    });
+    setFormData({ ...formData, labores: updatedLabores });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const lote = lotes.find(l => l.id === formData.lote_id);
     const trabajador = trabajadores.find(t => t.id === formData.trabajador_id);
-    const dataToSave = {
-      ...formData,
-      lote_nombre: lote?.nombre || 'Desconocido',
-      trabajador_nombre: trabajador?.nombre || 'General',
-      año: new Date(formData.fecha).getFullYear(),
-      semana: getWeekNumber(formData.fecha)
-    };
 
-    if (editingActividadId) {
-      await updateDoc(doc(db, 'actividades', editingActividadId), dataToSave);
-      setEditingActividadId(null);
-    } else {
-      await addDoc(collection(db, 'actividades'), {
-        ...dataToSave,
-        timestamp: new Date().toISOString()
+    try {
+      if (editingActividadId) {
+        // En modo edición solo hay 1 labor (la primera del array)
+        const labor = formData.labores[0];
+        const dataToSave = {
+          fecha: formData.fecha,
+          lote_id: formData.lote_id,
+          trabajador_id: formData.trabajador_id,
+          tipo: labor.tipo,
+          horas: Number(labor.horas),
+          observaciones: labor.observaciones,
+          lote_nombre: lote?.nombre || 'Desconocido',
+          trabajador_nombre: trabajador?.nombre || 'General',
+          año: new Date(formData.fecha).getFullYear(),
+          semana: getWeekNumber(formData.fecha)
+        };
+        await updateDoc(doc(db, 'actividades', editingActividadId), dataToSave);
+        setEditingActividadId(null);
+        alert("Labor actualizada con éxito");
+      } else {
+        // Registrar múltiples labores
+        for (const labor of formData.labores) {
+          if (!labor.horas) continue;
+          const dataToSave = {
+            fecha: formData.fecha,
+            lote_id: formData.lote_id,
+            trabajador_id: formData.trabajador_id,
+            tipo: labor.tipo,
+            horas: Number(labor.horas),
+            observaciones: labor.observaciones,
+            lote_nombre: lote?.nombre || 'Desconocido',
+            trabajador_nombre: trabajador?.nombre || 'General',
+            año: new Date(formData.fecha).getFullYear(),
+            semana: getWeekNumber(formData.fecha),
+            timestamp: new Date().toISOString()
+          };
+          await addDoc(collection(db, 'actividades'), dataToSave);
+        }
+        alert("Labores registradas con éxito");
+      }
+
+      setFormData({
+        fecha: new Date().toISOString().split('T')[0],
+        lote_id: '',
+        trabajador_id: '',
+        labores: [
+          { tipo: 'Poda', horas: '', observaciones: '' }
+        ]
       });
+      setShowForm(false);
+      onRefresh();
+    } catch (error) {
+      console.error("Error saving actividad:", error);
+      alert("Error al guardar la labor");
     }
-
-    setFormData({
-      fecha: new Date().toISOString().split('T')[0],
-      tipo: 'Poda',
-      lote_id: '',
-      trabajador_id: '',
-      horas: '',
-      observaciones: ''
-    });
-    setShowForm(false);
-    fetchActividades();
   };
 
   const handleEdit = (act) => {
     setEditingActividadId(act.id);
     setFormData({
       fecha: act.fecha,
-      tipo: act.tipo,
       lote_id: act.lote_id,
       trabajador_id: act.trabajador_id || '',
-      horas: act.horas || '',
-      observaciones: act.observaciones || ''
+      labores: [
+        { tipo: act.tipo, horas: act.horas || '', observaciones: act.observaciones || '' }
+      ]
     });
     setShowForm(true);
   };
@@ -299,7 +381,7 @@ const ActividadesSection = ({ lotes, trabajadores, onRefresh }) => {
     if (window.confirm('¿Estás seguro de eliminar este registro de labor?')) {
       try {
         await deleteDoc(doc(db, 'actividades', id));
-        fetchActividades();
+        onRefresh();
       } catch (error) {
         console.error("Error deleting actividad:", error);
       }
@@ -316,49 +398,117 @@ const ActividadesSection = ({ lotes, trabajadores, onRefresh }) => {
                 setEditingActividadId(null);
                 setFormData({
                     fecha: new Date().toISOString().split('T')[0],
-                    tipo: 'Poda',
                     lote_id: '',
                     trabajador_id: '',
-                    horas: '',
-                    observaciones: ''
+                    labores: [{ tipo: 'Poda', horas: '', observaciones: '' }]
                 });
             }
         }} className="px-4 py-2 bg-primary/10 text-primary font-bold rounded-xl flex items-center gap-2 hover:bg-primary/20 transition-all">
           {showForm ? 'Cerrar' : <><Plus size={18}/> Registrar Labor</>}
         </button>
       </div>
+
       {showForm && (
-        <form onSubmit={handleSubmit} className="card bg-gray-50 p-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="text-[10px] font-black uppercase text-gray-400">Fecha</label>
-            <input type="date" className="input-field bg-white" value={formData.fecha} onChange={e => setFormData({...formData, fecha: e.target.value})} required />
+        <form onSubmit={handleSubmit} className="card bg-gray-50 p-6 space-y-6 animate-in slide-in-from-top-4 duration-300">
+          {/* Datos Comunes */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Fecha</label>
+              <input type="date" className="input-field bg-white" value={formData.fecha} onChange={e => setFormData({...formData, fecha: e.target.value})} required />
+            </div>
+            <div>
+              <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Lote</label>
+              <select className="input-field bg-white" value={formData.lote_id} onChange={e => setFormData({...formData, lote_id: e.target.value})} required>
+                <option value="">Lote...</option>
+                {lotes.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Responsable</label>
+              <select className="input-field bg-white" value={formData.trabajador_id} onChange={e => setFormData({...formData, trabajador_id: e.target.value})}>
+                <option value="">General</option>
+                {trabajadores.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+              </select>
+            </div>
           </div>
-          <div>
-            <label className="text-[10px] font-black uppercase text-gray-400">Labor</label>
-            <select className="input-field bg-white" value={formData.tipo} onChange={e => setFormData({...formData, tipo: e.target.value})}>
-              {tipos.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
+
+          {/* Listado de Labores del Día */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+              <h4 className="text-sm font-bold text-gray-700">Labores del Día (Máximo 3)</h4>
+              {formData.labores.length < 3 && !editingActividadId && (
+                <button
+                  type="button"
+                  onClick={handleAddLaborRow}
+                  className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-lg hover:bg-primary/20 transition-all flex items-center gap-1"
+                >
+                  <Plus size={14} /> + Adicionar Labor
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-4 divide-y divide-gray-100">
+              {formData.labores.map((labor, idx) => (
+                <div key={idx} className={`grid grid-cols-1 md:grid-cols-12 gap-4 ${idx > 0 ? 'pt-4 border-t border-gray-100/50' : ''}`}>
+                  <div className="md:col-span-3">
+                    <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Labor #{idx + 1}</label>
+                    <select 
+                      className="input-field bg-white" 
+                      value={labor.tipo} 
+                      onChange={e => handleLaborFieldChange(idx, 'tipo', e.target.value)}
+                    >
+                      {tipos.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Tiempo (Horas)</label>
+                    <input 
+                      type="number" 
+                      step="0.5" 
+                      min="0.5" 
+                      placeholder="Ej: 4.5" 
+                      className="input-field bg-white" 
+                      value={labor.horas} 
+                      onChange={e => handleLaborFieldChange(idx, 'horas', e.target.value)} 
+                      required 
+                    />
+                  </div>
+                  <div className="md:col-span-6">
+                    <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Observaciones</label>
+                    <input 
+                      className="input-field bg-white" 
+                      placeholder="Observaciones de esta labor..." 
+                      value={labor.observaciones} 
+                      onChange={e => handleLaborFieldChange(idx, 'observaciones', e.target.value)} 
+                    />
+                  </div>
+                  <div className="md:col-span-1 flex items-end justify-center">
+                    {idx > 0 && (
+                      <button 
+                        type="button" 
+                        onClick={() => handleRemoveLaborRow(idx)} 
+                        className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all mb-1"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div>
-            <label className="text-[10px] font-black uppercase text-gray-400">Lote</label>
-            <select className="input-field bg-white" value={formData.lote_id} onChange={e => setFormData({...formData, lote_id: e.target.value})} required>
-              <option value="">Lote...</option>
-              {lotes.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
-            </select>
+
+          <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
+            <button 
+              type="submit" 
+              className="btn-primary px-8 py-3 shadow-lg shadow-primary/20"
+            >
+              {editingActividadId ? 'Actualizar Registro' : 'Guardar Labores'}
+            </button>
           </div>
-          <div>
-            <label className="text-[10px] font-black uppercase text-gray-400">Responsable</label>
-            <select className="input-field bg-white" value={formData.trabajador_id} onChange={e => setFormData({...formData, trabajador_id: e.target.value})}>
-              <option value="">General</option>
-              {trabajadores.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-            </select>
-          </div>
-          <div className="md:col-span-3">
-            <input className="input-field bg-white" placeholder="Observaciones..." value={formData.observaciones} onChange={e => setFormData({...formData, observaciones: e.target.value})} />
-          </div>
-          <button type="submit" className="btn-primary py-3">{editingActividadId ? 'Actualizar' : 'Guardar'}</button>
         </form>
       )}
+
       <div className="card overflow-hidden">
         <table className="w-full">
           <thead>
@@ -366,6 +516,7 @@ const ActividadesSection = ({ lotes, trabajadores, onRefresh }) => {
               <th className="p-4">Fecha</th>
               <th className="p-4">Lote</th>
               <th className="p-4">Labor</th>
+              <th className="p-4 text-center">Horas</th>
               <th className="p-4">Responsable</th>
               <th className="p-4 text-right">Acciones</th>
             </tr>
@@ -375,7 +526,12 @@ const ActividadesSection = ({ lotes, trabajadores, onRefresh }) => {
               <tr key={act.id} className="hover:bg-gray-50 group transition-colors">
                 <td className="p-4 text-sm text-gray-500">{act.fecha}</td>
                 <td className="p-4 font-bold">{act.lote_nombre}</td>
-                <td className="p-4"><span className="px-2 py-1 bg-primary/5 text-primary rounded-lg text-[10px] font-black uppercase">{act.tipo}</span></td>
+                <td className="p-4">
+                  <span className="px-2 py-1 bg-primary/5 text-primary rounded-lg text-[10px] font-black uppercase">
+                    {act.tipo}
+                  </span>
+                </td>
+                <td className="p-4 text-center font-black text-primary">{act.horas}h</td>
                 <td className="p-4 text-sm text-gray-600">{act.trabajador_nombre}</td>
                 <td className="p-4 text-right">
                   <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
