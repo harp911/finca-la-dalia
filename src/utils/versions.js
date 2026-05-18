@@ -1,6 +1,18 @@
-export const CURRENT_VERSION = '1.9.0';
+export const CURRENT_VERSION = '1.10.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.10.0',
+    date: '17 de Mayo, 2026',
+    title: 'Esquema de Pago Dinámico por Jornal Diario',
+    description: 'Alineación de la interfaz de personal con el esquema de pago diario por jornal para los roles de Jornalero y Cosechador, diferenciándolos de salarios mensuales.',
+    type: 'feature',
+    changes: [
+      'Rediseñado el formulario de creación/edición de trabajadores para mostrar dinámicamente "Valor Jornal Diario (por Día)" al seleccionar Jornalero o Cosechador, o "Salario Mensual" para otros cargos.',
+      'Sincronizado el visualizador de tarjetas de personal, mostrando explícitamente "Jornal Diario: $X / día" para roles diarios y "Salario Mensual: $X" para cargos fijos.',
+      'Establecido placeholders explicativos dinámicos ajustados a valores promedio de la región.'
+    ]
+  },
   {
     version: '1.9.0',
     date: '17 de Mayo, 2026',

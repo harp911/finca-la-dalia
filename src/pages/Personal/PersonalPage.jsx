@@ -291,8 +291,13 @@ const PersonalPage = () => {
                     <span className="font-bold text-gray-700">{t.cedula}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Salario/Jornal:</span>
-                    <span className="font-black text-primary">{formatCOP(t.salario_mensual || t.valor_jornal)}</span>
+                    <span className="text-gray-400">
+                      {(t.cargo === 'Jornalero' || t.cargo === 'Cosechador') ? 'Jornal Diario:' : 'Salario Mensual:'}
+                    </span>
+                    <span className="font-black text-primary">
+                      {formatCOP(t.valor_jornal)}
+                      {(t.cargo === 'Jornalero' || t.cargo === 'Cosechador') && <span className="text-[10px] text-gray-400 font-semibold ml-1">/ día</span>}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -457,14 +462,16 @@ const PersonalPage = () => {
                     <option value="Conductor">Conductor</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Valor Jornal / Mes</label>
+                 <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    {(formData.cargo === 'Jornalero' || formData.cargo === 'Cosechador') ? 'Valor Jornal Diario (por Día)' : 'Salario Mensual'}
+                  </label>
                   <input 
                     type="number"
                     className="input-field" 
                     value={formData.valor_jornal}
                     onChange={(e) => setFormData({...formData, valor_jornal: e.target.value})}
-                    placeholder="50000"
+                    placeholder={(formData.cargo === 'Jornalero' || formData.cargo === 'Cosechador') ? "Ej: 75000" : "Ej: 1500000"}
                     required 
                   />
                 </div>
