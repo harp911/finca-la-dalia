@@ -13,6 +13,7 @@ const LotesPage = () => {
   const [lotes, setLotes] = useState([]);
   const [trabajadores, setTrabajadores] = useState([]);
   const [actividades, setActividades] = useState([]);
+  const [cosechas, setCosechas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLote, setEditingLote] = useState(null);
@@ -48,6 +49,10 @@ const LotesPage = () => {
       const qActividades = query(collection(db, 'actividades'), orderBy('fecha', 'desc'));
       const actividadesSnap = await getDocs(qActividades);
       setActividades(actividadesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+      const qCosechas = query(collection(db, 'cosechas'), orderBy('fecha', 'desc'));
+      const cosechasSnap = await getDocs(qCosechas);
+      setCosechas(cosechasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -145,6 +150,9 @@ const LotesPage = () => {
           {lotes.map((lote) => {
             const loteActividades = actividades.filter(act => act.lote_id === lote.id);
             const totalHoras = loteActividades.reduce((sum, act) => sum + Number(act.horas || 0), 0);
+            
+            const loteCosechas = cosechas.filter(cos => cos.lote_id === lote.id);
+            const totalKilos = loteCosechas.reduce((sum, cos) => sum + Number(cos.kilos_total || 0), 0);
 
             return (
               <div 
@@ -183,19 +191,36 @@ const LotesPage = () => {
                     <p className="text-xs text-gray-400 italic">Sin labores registradas</p>
                   ) : (
                     <div className="space-y-2">
-                      {loteActividades.slice(0, 3).map(act => (
+                      {loteActividades.slice(0, 2).map(act => (
                         <div key={act.id} className="flex justify-between items-center text-xs bg-gray-50/50 p-2 rounded-xl border border-gray-100/50">
                           <span className="font-semibold text-gray-700">{act.tipo} ({act.horas}h)</span>
                           <span className="text-gray-400 font-medium text-[10px]">{act.fecha}</span>
                         </div>
                       ))}
-                      {loteActividades.length > 3 && (
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); setActiveTab('actividades'); }} 
-                          className="text-[10px] text-primary font-black block pt-1 hover:underline text-left"
-                        >
-                          + Ver {loteActividades.length - 3} labores más
-                        </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Producción Cosechada de este Lote */}
+                <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Producción Cosechada</span>
+                    <span className="text-[10px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{formatKg(totalKilos)}</span>
+                  </div>
+                  {loteCosechas.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic">Sin cosechas registradas</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {loteCosechas.slice(0, 2).map(cos => (
+                        <div key={cos.id} className="flex justify-between items-center text-xs bg-gray-50/50 p-2 rounded-xl border border-gray-100/50">
+                          <span className="font-semibold text-gray-700">Semana {cos.semana}: {formatKg(cos.kilos_total)}</span>
+                          <span className="text-gray-400 font-medium text-[10px]">{cos.fecha}</span>
+                        </div>
+                      ))}
+                      {loteCosechas.length > 2 && (
+                        <span className="text-[10px] text-orange-600 font-black block pt-1 hover:underline text-left">
+                          + Ver detalles al hacer clic
+                        </span>
                       )}
                     </div>
                   )}
@@ -303,9 +328,45 @@ const LotesPage = () => {
           return filtered.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
         };
 
+        const getFilteredLoteCosechas = (loteId) => {
+          let filtered = cosechas.filter(cos => cos.lote_id === loteId);
+          
+          const today = new Date();
+          let startDate = null;
+          
+          if (dateRange === '7') {
+            startDate = new Date();
+            startDate.setDate(today.getDate() - 7);
+          } else if (dateRange === '30') {
+            startDate = new Date();
+            startDate.setDate(today.getDate() - 30);
+          } else if (dateRange === '90') {
+            startDate = new Date();
+            startDate.setDate(today.getDate() - 90);
+          } else if (dateRange === 'custom') {
+            if (customStartDate) {
+              filtered = filtered.filter(cos => new Date(cos.fecha) >= new Date(customStartDate + 'T00:00:00'));
+            }
+            if (customEndDate) {
+              filtered = filtered.filter(cos => new Date(cos.fecha) <= new Date(customEndDate + 'T23:59:59'));
+            }
+            return filtered.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+          }
+          
+          if (startDate) {
+            startDate.setHours(0,0,0,0);
+            filtered = filtered.filter(cos => new Date(cos.fecha) >= startDate);
+          }
+          
+          return filtered.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        };
+
         const filteredActs = getFilteredLoteActividades(selectedLote.id);
+        const filteredCosechas = getFilteredLoteCosechas(selectedLote.id);
+
         const totalHoras = filteredActs.reduce((sum, act) => sum + Number(act.horas || 0), 0);
         const totalLabores = filteredActs.length;
+        const totalKilosPeriodo = filteredCosechas.reduce((sum, cos) => sum + Number(cos.kilos_total || 0), 0);
         
         // Calcular porcentaje por labor
         const breakdown = {};
@@ -324,9 +385,22 @@ const LotesPage = () => {
         const laborDominante = breakdownArray[0]?.tipo || 'Ninguna';
         const horasDominante = breakdownArray[0]?.horas || 0;
 
+        // Unificar cronología
+        const unifiedTimeline = [
+          ...filteredActs.map(act => ({ ...act, isCosechaRegistro: false })),
+          ...filteredCosechas.map(cos => ({
+            ...cos,
+            isCosechaRegistro: true,
+            tipo: 'Cosecha (Producción)',
+            horas: '-',
+            trabajador_nombre: 'Equipo Cosecha',
+            observaciones: cos.observaciones || 'Cosecha semanal de limón'
+          }))
+        ].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
         return (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-            <div className="bg-white rounded-[2rem] w-full max-w-4xl p-8 shadow-2xl animate-in zoom-in duration-200 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="bg-white rounded-[2rem] w-full max-w-5xl p-8 shadow-2xl animate-in zoom-in duration-200 flex flex-col max-h-[90vh] overflow-hidden">
               {/* Header */}
               <div className="flex justify-between items-start border-b border-gray-100 pb-4 mb-6">
                 <div>
@@ -334,7 +408,7 @@ const LotesPage = () => {
                     Detalle del Lote
                   </span>
                   <h3 className="text-3xl font-black text-gray-900 mt-2 leading-none">{selectedLote.nombre}</h3>
-                  <p className="text-gray-400 text-xs mt-1 font-semibold">Resumen de productividad y labores agrícolas</p>
+                  <p className="text-gray-400 text-xs mt-1 font-semibold">Resumen de productividad, labores y producción recolectada</p>
                 </div>
                 <button 
                   onClick={() => setSelectedLote(null)}
@@ -386,12 +460,12 @@ const LotesPage = () => {
                   )}
 
                   <div className="text-right text-[11px] text-gray-400 font-bold">
-                    {totalLabores} labores encontradas en este rango.
+                    {unifiedTimeline.length} registros operativos encontrados en este rango.
                   </div>
                 </div>
 
-                {/* Pequeño Dashboard */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Dashboard Analítico */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="bg-primary/5 border border-primary/10 p-5 rounded-2xl flex flex-col justify-between">
                     <span className="text-[10px] font-black uppercase text-primary tracking-wider">Total Horas</span>
                     <div className="flex items-baseline gap-1 mt-2">
@@ -410,9 +484,17 @@ const LotesPage = () => {
                     <span className="text-[10px] text-secondary/60 font-semibold mt-1">Intervenciones en el lote</span>
                   </div>
 
+                  <div className="bg-orange-50 border border-orange-100 p-5 rounded-2xl flex flex-col justify-between">
+                    <span className="text-[10px] font-black uppercase text-orange-500 tracking-wider">Total Cosechado</span>
+                    <div className="flex items-baseline gap-1 mt-2">
+                      <span className="text-4xl font-black text-orange-600">{formatKg(totalKilosPeriodo)}</span>
+                    </div>
+                    <span className="text-[10px] text-orange-400 font-semibold mt-1">Producción de Limón</span>
+                  </div>
+
                   <div className="bg-blue-50 border border-blue-100 p-5 rounded-2xl flex flex-col justify-between">
                     <span className="text-[10px] font-black uppercase text-blue-500 tracking-wider">Labor Predominante</span>
-                    <div className="mt-2">
+                    <div className="mt-2 col-span-1">
                       <span className="text-xl font-black text-blue-900 block truncate">{laborDominante}</span>
                       <span className="text-xs font-semibold text-blue-500">{horasDominante} hrs registradas</span>
                     </div>
@@ -425,7 +507,7 @@ const LotesPage = () => {
                   <div className="lg:col-span-4 bg-gray-50 border border-gray-100 p-6 rounded-2xl space-y-4">
                     <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Distribución del Tiempo</h4>
                     {breakdownArray.length === 0 ? (
-                      <p className="text-xs text-gray-400 italic">No hay datos disponibles.</p>
+                      <p className="text-xs text-gray-400 italic">No hay datos disponibles de labores.</p>
                     ) : (
                       <div className="space-y-4">
                         {breakdownArray.map(item => (
@@ -446,40 +528,46 @@ const LotesPage = () => {
                     )}
                   </div>
 
-                  {/* Tabla de Actividades */}
+                  {/* Tabla de Actividades y Cosechas Unificadas */}
                   <div className="lg:col-span-8 bg-white border border-gray-100 rounded-2xl overflow-hidden flex flex-col">
                     <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-                      <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Detalle Cronológico</h4>
+                      <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Detalle Cronológico Unificado</h4>
                     </div>
                     <div className="flex-1 overflow-x-auto max-h-[300px] overflow-y-auto">
-                      {filteredActs.length === 0 ? (
+                      {unifiedTimeline.length === 0 ? (
                         <div className="p-8 text-center text-xs text-gray-400 italic">
-                          No se registraron labores en el periodo seleccionado.
+                          No se registraron labores ni cosechas en el periodo seleccionado.
                         </div>
                       ) : (
                         <table className="w-full text-left text-xs">
                           <thead>
                             <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase text-[9px] bg-gray-50/20">
                               <th className="p-3">Fecha</th>
-                              <th className="p-3">Labor</th>
+                              <th className="p-3">Registro</th>
                               <th className="p-3">Responsable</th>
-                              <th className="p-3 text-center">Horas</th>
+                              <th className="p-3 text-center">Cantidad / Horas</th>
                               <th className="p-3">Observaciones</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50 text-gray-600">
-                            {filteredActs.map(act => (
-                              <tr key={act.id} className="hover:bg-gray-50/50">
-                                <td className="p-3 font-semibold text-gray-500 whitespace-nowrap">{act.fecha}</td>
+                            {unifiedTimeline.map(item => (
+                              <tr key={item.id} className="hover:bg-gray-50/50">
+                                <td className="p-3 font-semibold text-gray-500 whitespace-nowrap">{item.fecha}</td>
                                 <td className="p-3 font-bold text-gray-900">
-                                  <span className="px-2 py-0.5 bg-primary-light text-primary rounded-md text-[10px] font-black uppercase">
-                                    {act.tipo}
+                                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${item.isCosechaRegistro ? 'bg-orange-100 text-orange-600' : 'bg-primary-light text-primary'}`}>
+                                    {item.tipo}
                                   </span>
                                 </td>
-                                <td className="p-3 whitespace-nowrap">{act.trabajador_nombre}</td>
-                                <td className="p-3 text-center font-black text-primary">{act.horas}h</td>
-                                <td className="p-3 max-w-[200px] truncate" title={act.observaciones || ''}>
-                                  {act.observaciones || <span className="text-gray-300 italic">Sin observaciones</span>}
+                                <td className="p-3 whitespace-nowrap">{item.trabajador_nombre}</td>
+                                <td className="p-3 text-center font-black">
+                                  {item.isCosechaRegistro ? (
+                                    <span className="text-orange-600">{formatKg(item.kilos_total)}</span>
+                                  ) : (
+                                    <span className="text-primary">{item.horas}h</span>
+                                  )}
+                                </td>
+                                <td className="p-3 max-w-[200px] truncate" title={item.observaciones || ''}>
+                                  {item.observaciones || <span className="text-gray-300 italic">Sin observaciones</span>}
                                 </td>
                               </tr>
                             ))}

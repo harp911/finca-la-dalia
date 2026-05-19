@@ -1,6 +1,18 @@
-export const CURRENT_VERSION = '1.10.0';
+export const CURRENT_VERSION = '1.11.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.11.0',
+    date: '19 de Mayo, 2026',
+    title: 'Integración Unificada de Cosechas en Dashboard de Lotes',
+    description: 'Conexión en tiempo real de los registros de cosecha física con el inventario de lotes y el panel analítico individual.',
+    type: 'feature',
+    changes: [
+      'Visualización directa de producción cosechada en cada lote card (kilos totales y los dos registros más recientes por semana).',
+      'Mini-dashboard detallado con un nuevo KPI de "Total Cosechado" en color naranja representativo.',
+      'Unificación del detalle cronológico del lote para listar en una sola línea de tiempo dinámica tanto labores agrícolas (poda, fertilización, etc.) como recolección física (kilos cosechados).'
+    ]
+  },
   {
     version: '1.10.0',
     date: '17 de Mayo, 2026',
