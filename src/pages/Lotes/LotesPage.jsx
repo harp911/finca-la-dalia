@@ -151,7 +151,10 @@ const LotesPage = () => {
             const loteActividades = actividades.filter(act => act.lote_id === lote.id);
             const totalHoras = loteActividades.reduce((sum, act) => sum + Number(act.horas || 0), 0);
             
-            const loteCosechas = cosechas.filter(cos => cos.lote_id === lote.id);
+            const loteCosechas = cosechas.filter(cos => 
+              cos.lote_id === lote.id || 
+              (cos.lote_nombre && cos.lote_nombre.toLowerCase().trim() === lote.nombre.toLowerCase().trim())
+            );
             const totalKilos = loteCosechas.reduce((sum, cos) => sum + Number(cos.kilos_total || 0), 0);
 
             return (
@@ -328,8 +331,11 @@ const LotesPage = () => {
           return filtered.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
         };
 
-        const getFilteredLoteCosechas = (loteId) => {
-          let filtered = cosechas.filter(cos => cos.lote_id === loteId);
+        const getFilteredLoteCosechas = (loteId, loteNombre) => {
+          let filtered = cosechas.filter(cos => 
+            cos.lote_id === loteId || 
+            (cos.lote_nombre && cos.lote_nombre.toLowerCase().trim() === loteNombre.toLowerCase().trim())
+          );
           
           const today = new Date();
           let startDate = null;
@@ -362,7 +368,7 @@ const LotesPage = () => {
         };
 
         const filteredActs = getFilteredLoteActividades(selectedLote.id);
-        const filteredCosechas = getFilteredLoteCosechas(selectedLote.id);
+        const filteredCosechas = getFilteredLoteCosechas(selectedLote.id, selectedLote.nombre);
 
         const totalHoras = filteredActs.reduce((sum, act) => sum + Number(act.horas || 0), 0);
         const totalLabores = filteredActs.length;
@@ -898,7 +904,13 @@ const HistorialUnificado = ({ lotes }) => {
     const dataCos = snapCos.docs.map(doc => ({ id: doc.id, type: 'harvest', ...doc.data() }));
 
     let unified = [...dataAct, ...dataCos].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-    if (filterLote) unified = unified.filter(i => i.lote_id === filterLote);
+    if (filterLote) {
+      const activeLote = lotes.find(l => l.id === filterLote);
+      unified = unified.filter(i => 
+        i.lote_id === filterLote || 
+        (activeLote && i.lote_nombre && i.lote_nombre.toLowerCase().trim() === activeLote.nombre.toLowerCase().trim())
+      );
+    }
     setItems(unified);
   };
 

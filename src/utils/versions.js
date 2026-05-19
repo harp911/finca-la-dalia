@@ -1,6 +1,18 @@
-export const CURRENT_VERSION = '1.11.0';
+export const CURRENT_VERSION = '1.11.1';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.11.1',
+    date: '19 de Mayo, 2026',
+    title: 'Robustez de Vinculación de Cosechas por Nombre de Lote',
+    description: 'Asegurada la visualización de datos históricos y de carga masiva que no cuentan con lote_id mediante vinculación por nombre de lote.',
+    type: 'fix',
+    changes: [
+      'Implementada vinculación híbrida (por ID y por Nombre) en las tarjetas generales de lotes para reflejar la producción cosechada.',
+      'Sincronizado el filtro de cosechas del mini-dashboard de detalles del lote para usar vinculación híbrida y mostrar el total cosechado correcto.',
+      'Corregido el filtro del Historial Unificado para que los registros de cosecha cargados masivamente se listen adecuadamente al filtrar por lote.'
+    ]
+  },
   {
     version: '1.11.0',
     date: '19 de Mayo, 2026',
