@@ -1,6 +1,18 @@
-export const CURRENT_VERSION = '1.11.1';
+export const CURRENT_VERSION = '1.11.2';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.11.2',
+    date: '21 de Mayo, 2026',
+    title: 'Habilitación de Exportación de Reportes Operativos',
+    description: 'Implementada la funcionalidad de exportación para el historial de cosechas (formato Excel) y liquidaciones comerciales (formato PDF).',
+    type: 'feature',
+    changes: [
+      'Desarrollado el exportador de reportes de cosecha en formato Excel (.xlsx) utilizando la librería XLSX, con autoajuste de ancho de columnas y formato estructurado por semana, fecha, lote, cantidad y observaciones.',
+      'Desarrollado el generador de reportes de liquidación comercial consolidados en formato PDF horizontal (Landscape) utilizando jsPDF y autoTable, detallando el desglose por categorías (exportación, primera, segunda, rechazo) y totales recaudados.',
+      'Enlazados los handlers de exportación a los botones de descarga interactivos en los módulos de Cosechas y Ventas.'
+    ]
+  },
   {
     version: '1.11.1',
     date: '19 de Mayo, 2026',

@@ -5,6 +5,7 @@ import { Leaf, Plus, Calendar, Filter, Download, CheckCircle2, Clock, Trash2 } f
 import { getWeekNumber, getCurrentWeek, getCurrentYear } from '../../utils/weekUtils';
 import { formatKg } from '../../utils/formatters';
 import BulkUploadModal from '../../components/Cosecha/BulkUploadModal';
+import * as XLSX from 'xlsx';
 
 const CosechaPage = () => {
   const [cosechas, setCosechas] = useState([]);
@@ -100,6 +101,42 @@ const CosechaPage = () => {
     }
   };
 
+  const exportarReporte = () => {
+    if (cosechas.length === 0) {
+      alert('No hay registros de cosecha para exportar');
+      return;
+    }
+
+    // Preparar datos para Excel
+    const dataToExport = cosechas.map(c => ({
+      'Semana': c.semana || 'N/A',
+      'Fecha': c.fecha,
+      'Lote': c.lote_nombre,
+      'Cantidad (Kg)': c.kilos_total,
+      'Año': c.año || new Date(c.fecha).getFullYear(),
+      'Observaciones': c.observaciones || 'Sin observaciones'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    
+    // Ajustar ancho de las columnas
+    const columnWidths = [
+      { wch: 10 }, // Semana
+      { wch: 15 }, // Fecha
+      { wch: 20 }, // Lote
+      { wch: 18 }, // Cantidad (Kg)
+      { wch: 10 }, // Año
+      { wch: 45 }  // Observaciones
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Cosechas Finca La Dalia');
+
+    // Guardar el archivo Excel
+    XLSX.writeFile(workbook, `reporte_cosechas_la_dalia_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -176,7 +213,10 @@ const CosechaPage = () => {
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-bold text-gray-800 text-lg">Historial de Cosechas</h3>
-          <button className="text-primary font-bold text-sm flex items-center gap-1 hover:underline">
+          <button 
+            onClick={exportarReporte}
+            className="text-primary font-bold text-sm flex items-center gap-1 hover:underline"
+          >
             <Download size={16} /> Exportar Reporte
           </button>
         </div>

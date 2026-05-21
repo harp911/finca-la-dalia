@@ -200,6 +200,91 @@ const VentasPage = () => {
     doc.save(`liquidacion_${venta.cliente}_${venta.fecha}.pdf`);
   };
 
+  const generateGlobalPDFReport = () => {
+    if (ventas.length === 0) {
+      alert('No hay liquidaciones de venta para exportar');
+      return;
+    }
+
+    const doc = new jsPDF('landscape');
+    const margin = 15;
+    
+    // Header
+    doc.setFillColor(34, 197, 94); // Primary green
+    doc.roundedRect(margin, margin, 8, 8, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.text('L', margin + 2.5, margin + 5.5);
+    
+    doc.setTextColor(34, 197, 94);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Optifrutas - Finca La Dalia', margin + 11, margin + 6);
+    
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Historial de Ventas y Liquidaciones de Limón Tahití', margin + 11, margin + 12);
+    
+    doc.setDrawColor(240, 240, 240);
+    doc.line(margin, margin + 16, 297 - margin, margin + 16);
+    
+    // Title
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('REPORTE CONSOLIDADO DE COMERCIALIZACIÓN', margin, margin + 24);
+    
+    // Table columns
+    const columns = [
+      'Cliente', 'Lote', 'Fecha', 'Semana', 
+      'Exportación (Kg)', 'Primera (Kg)', 'Segunda (Kg)', 'Rechazo (Kg)', 
+      'Total Venta', 'Estado'
+    ];
+    
+    const rows = ventas.map(v => [
+      v.cliente,
+      v.lote_nombre || 'N/A',
+      v.fecha,
+      v.semana || 'N/A',
+      formatKg(v.cat_exportacion.kg),
+      formatKg(v.cat_primera.kg),
+      formatKg(v.cat_segunda.kg),
+      formatKg(v.cat_rechazo.kg),
+      formatCOP(v.total_venta),
+      v.estado_pago.toUpperCase()
+    ]);
+    
+    autoTable(doc, {
+      startY: margin + 30,
+      head: [columns],
+      body: rows,
+      theme: 'striped',
+      headStyles: { fillColor: [34, 197, 94] },
+      styles: { fontSize: 8.5 },
+      margin: { left: margin, right: margin }
+    });
+    
+    // Totales consolidado
+    const totalVentas = ventas.reduce((acc, curr) => acc + (Number(curr.total_venta) || 0), 0);
+    const totalKilos = ventas.reduce((acc, curr) => acc + 
+      (Number(curr.cat_exportacion?.kg || 0) + Number(curr.cat_primera?.kg || 0) + Number(curr.cat_segunda?.kg || 0) + Number(curr.cat_rechazo?.kg || 0)), 0);
+      
+    const finalY = doc.lastAutoTable.finalY + 12;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total Kilos Liquidados: ${formatKg(totalKilos)}`, margin, finalY);
+    doc.text(`Total Recaudado: ${formatCOP(totalVentas)}`, 297 - margin, finalY, { align: 'right' });
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Generado automáticamente por Finca La Dalia | Optifrutas', 148.5, 200, { align: 'center' });
+    
+    doc.save(`reporte_ventas_la_dalia_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -256,7 +341,10 @@ const VentasPage = () => {
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-bold text-gray-800 text-lg">Historial de Liquidaciones</h3>
-          <button className="text-primary font-bold text-xs flex items-center gap-1 hover:underline">
+          <button 
+            onClick={generateGlobalPDFReport}
+            className="text-primary font-bold text-xs flex items-center gap-1 hover:underline"
+          >
             <Download size={16} /> Descargar Reporte
           </button>
         </div>
