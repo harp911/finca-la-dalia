@@ -1,6 +1,19 @@
-export const CURRENT_VERSION = '1.11.2';
+export const CURRENT_VERSION = '1.12.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.12.0',
+    date: '21 de Mayo, 2026',
+    title: 'Módulo Operativo de Transporte y Tractor',
+    description: 'Reconstrucción completa de la sección Transporte para gestionar en tiempo real los ingresos por servicios externos y los gastos operativos del tractor.',
+    type: 'feature',
+    changes: [
+      'Implementada base de datos Firestore dinámica para la colección "transporte" con clasificación por ingresos por fletes/labranza y gastos de mantenimiento/combustible.',
+      'Creado un modal interactivo para registrar transacciones con validación de campos obligatorios, selección de categorías y cálculo automático de semana y año.',
+      'Diseñados cuatro KPIs dinámicos interactivos: Ingresos por Servicios, Gastos de Tractor, Balance Neto Operativo y Cuentas por Cobrar en tiempo real.',
+      'Añadida barra de navegación por pestañas con filtros rápidos y la posibilidad de cambiar de forma interactiva el estado de pago del servicio (Pagado/Pendiente) directamente desde la tabla.'
+    ]
+  },
   {
     version: '1.11.2',
     date: '21 de Mayo, 2026',
